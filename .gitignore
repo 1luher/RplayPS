@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+data/
+logs/
+psn_client.json
+*.log
