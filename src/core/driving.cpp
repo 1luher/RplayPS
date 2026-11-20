@@ -47,3 +47,14 @@ Stick RadialAim::value() const {
     if (!active_ || len < kRadialDeadzone) return {};
     return {ax_ / len, ay_ / len};
 }
+
+bool PadRateLimiter::shouldSend(const PadState& pad, double tMs) {
+    if (!first_ && pad == sent_) return false;
+    const bool discrete = first_ || pad.buttons != sent_.buttons || pad.l2 != sent_.l2 || pad.r2 != sent_.r2 ||
+                          pad == PadState{};
+    if (!discrete && tMs - lastSend_ < kStickSendIntervalMs) return false;
+    sent_ = pad;
+    lastSend_ = tMs;
+    first_ = false;
+    return true;
+}

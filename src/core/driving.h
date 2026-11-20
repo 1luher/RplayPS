@@ -34,3 +34,17 @@ private:
     double heldSince_ = 0;
     float ax_ = 0, ay_ = 0;
 };
+
+// Keeps the PS5 from being flooded: button/trigger changes and the neutral state go out at
+// once; stick-only changes at most every kStickSendIntervalMs (a later call sends what's pending).
+constexpr double kStickSendIntervalMs = 4.0;  // 250 Hz
+
+class PadRateLimiter {
+public:
+    bool shouldSend(const PadState& pad, double tMs);
+
+private:
+    PadState sent_;
+    double lastSend_ = -1e18;
+    bool first_ = true;
+};

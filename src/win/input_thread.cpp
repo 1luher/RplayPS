@@ -122,6 +122,8 @@ void InputThread::threadMain() {
             if (msg.message == kMsgQuit) running = false;
         }
         // One evaluation per batch of raw input (fast mice deliver bursts).
+        if (running && hadInput && active_ && GetForegroundWindow() != main_)
+            applyCapture(false, CaptureEvent::FocusLost);  // after Alt+Tab, not one more key goes out
         if (running && hadInput && active_) evaluate(false);
     }
 
@@ -178,6 +180,8 @@ void InputThread::applyCapture(bool on, CaptureEvent reason) {
         builder_->releaseAll();
         mouse_.reset();
         sent_ = PadState{};
+        limiter_ = PadRateLimiter{};
+        f8Down_ = (GetAsyncKeyState(VK_F8) & 0x8000) != 0;  // F8 still held from the press that captured
         RECT rc;  // keep the (hidden) cursor parked in the middle of our window
         if (GetWindowRect(main_, &rc)) {
             const LONG cx = (rc.left + rc.right) / 2, cy = (rc.top + rc.bottom) / 2;
@@ -263,7 +267,8 @@ void InputThread::onRawInput(HRAWINPUT handle) {
         const RAWKEYBOARD& k = raw.data.keyboard;
         const bool up = (k.Flags & RI_KEY_BREAK) != 0;
         if (k.VKey == kVkF8) {  // capture toggle: never forwarded to the PS5
-            if (!up) applyCapture(false, CaptureEvent::Released);
+            if (!up && !f8Down_) applyCapture(false, CaptureEvent::Released);  // ignore auto-repeat
+            f8Down_ = !up;
             return;
         }
         if (k.VKey >= kVkF1 && k.VKey <= kVkF5) {  // temporary class keys, never forwarded
@@ -285,10 +290,7 @@ void InputThread::evaluate(bool timed) {
         pad.right = radial_.value();
     }
     if (builder_->activeLayout().steerRampMs > 0) pad.left = steering_.step(pad.left, now);
-    if (pad != sent_) {
-        sent_ = pad;
-        if (cb_.onPad) cb_.onPad(pad);
-    }
+    if (limiter_.shouldSend(pad, now) && cb_.onPad) cb_.onPad(pad);  // buttons at once, sticks <= 250 Hz
     std::lock_guard lock(statsMutex_);
     stats_.lastPad = pad;
     if (timed) {

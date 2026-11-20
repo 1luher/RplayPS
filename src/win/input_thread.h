@@ -90,6 +90,8 @@ private:
     MouseStick mouse_;
     StickRamp steering_;  // smooth A/D steering in vehicles
     RadialAim radial_;    // weapon wheel / vehicle menu / partner menu
+    PadRateLimiter limiter_;
+    bool f8Down_ = false;
     PadState sent_;
 
     mutable std::mutex statsMutex_;

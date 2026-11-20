@@ -93,3 +93,26 @@ TEST_CASE("driving_settings_roundtrip_in_profile") {
     CHECK(back->layout(ControlClass::Ground).steerRampMs == 222);
     CHECK(back->layout(ControlClass::Ground).softTrigger == Approx(0.25f));
 }
+
+TEST_CASE("rate_limiter_sends_buttons_at_once_and_sticks_at_most_every_4ms") {
+    PadRateLimiter r;
+    PadState p;
+    p.right = {0.1f, 0};
+    CHECK(r.shouldSend(p, 0));       // first change
+    p.right = {0.2f, 0};
+    CHECK_FALSE(r.shouldSend(p, 1));  // stick-only, too soon
+    p.set(PadButton::Cross, true);
+    CHECK(r.shouldSend(p, 2));       // button: at once
+    p.right = {0.3f, 0};
+    CHECK_FALSE(r.shouldSend(p, 3));
+    CHECK(r.shouldSend(p, 6.5));     // the pending stick value goes out once 4 ms passed
+    CHECK_FALSE(r.shouldSend(p, 20)); // nothing new
+}
+
+TEST_CASE("rate_limiter_always_sends_neutral") {
+    PadRateLimiter r;
+    PadState p;
+    p.right = {0.5f, 0};
+    CHECK(r.shouldSend(p, 0));
+    CHECK(r.shouldSend(PadState{}, 0.5));  // release must never be delayed
+}

@@ -112,7 +112,7 @@ LRESULT WINAPI wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
             return 0;
         case WM_KEYDOWN:
-            if (wp == VK_F8 && g_app && !g_app->input->captured()) startCapture(*g_app);
+            if (wp == VK_F8 && !(lp & (1 << 30)) && g_app && !g_app->input->captured()) startCapture(*g_app);  // no auto-repeat
             break;
         case WM_SETCURSOR:
             if (g_app && g_app->input->captured()) {
@@ -247,6 +247,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
             g_resizeW = g_resizeH = 0;
             createRenderTarget();
         }
+        // Captured: ImGui must not set the arrow back, the cursor stays hidden.
+        if (input.captured()) io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+        else io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
@@ -257,7 +260,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
         g_context->ClearRenderTargetView(g_rtv, clear);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-        g_swapChain->Present(1, 0);
+        if (g_swapChain->Present(1, 0) == DXGI_STATUS_OCCLUDED || IsIconic(hwnd)) Sleep(30);  // minimized: idle
     }
 
     g_app = nullptr;
