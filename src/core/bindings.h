@@ -40,6 +40,10 @@ struct Bindings {
     std::array<std::array<InputCode, 2>, kActionCount> slots{};
 };
 
+// Raw Input keyboard report -> InputCode, keeping left/right Shift/Ctrl/Alt apart.
+// vkey/makeCode/e0 as in RAWKEYBOARD (VKey, MakeCode, RI_KEY_E0). Fake keys -> code::None.
+InputCode inputCodeFromRawKey(unsigned vkey, unsigned makeCode, bool e0);
+
 std::string inputCodeName(InputCode c);  // "W", "Space", "LShift", "Mouse1", "WheelUp", "F5"; "" if unknown
 std::optional<InputCode> parseInputCode(std::string_view name);  // F8 is reserved: nullopt
 std::string_view actionName(Action a);   // "cross", "l2", "move_up", "walk"

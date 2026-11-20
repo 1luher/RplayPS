@@ -30,6 +30,16 @@ add_executable(rplayctl "${CMAKE_SOURCE_DIR}/tools/rplayctl.cpp")
 target_link_libraries(rplayctl PRIVATE rplay_ps5)
 target_compile_options(rplayctl PRIVATE ${RPLAY_OPTS})
 
+# ---------------------------------------------------------------- Windows input + sounds
+file(GLOB RPLAY_WIN_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/win/*.cpp")
+add_library(rplay_win STATIC ${RPLAY_WIN_SOURCES})
+target_link_libraries(rplay_win PUBLIC rplay_core avrt winmm)
+target_compile_options(rplay_win PRIVATE ${RPLAY_OPTS})
+
+add_executable(inputcheck WIN32 "${CMAKE_SOURCE_DIR}/tools/inputcheck.cpp")
+target_link_libraries(inputcheck PRIVATE rplay_win)
+target_compile_options(inputcheck PRIVATE ${RPLAY_OPTS})
+
 # ---------------------------------------------------------------- tests
 enable_testing()
 file(GLOB RPLAY_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")

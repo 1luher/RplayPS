@@ -30,6 +30,17 @@ constexpr std::string_view kActionNames[kActionCount] = {
 
 }  // namespace
 
+InputCode inputCodeFromRawKey(unsigned vkey, unsigned makeCode, bool e0) {
+    constexpr unsigned kShift = 0x10, kControl = 0x11, kMenu = 0x12;
+    if (vkey == 0 || vkey >= 0xFF) return code::None;  // 0xFF: fake keys of escape sequences
+    switch (vkey) {
+        case kShift: return makeCode == 0x36 ? vk::RShift : vk::LShift;
+        case kControl: return e0 ? vk::RCtrl : vk::LCtrl;
+        case kMenu: return e0 ? vk::RAlt : vk::LAlt;
+        default: return static_cast<InputCode>(vkey);
+    }
+}
+
 std::string inputCodeName(InputCode c) {
     if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) return std::string(1, static_cast<char>(c));
     if (c >= vk::F1 && c <= vk::F12) return "F" + std::to_string(c - vk::F1 + 1);

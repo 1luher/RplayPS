@@ -126,3 +126,20 @@ TEST_CASE("action_names_roundtrip") {
     CHECK(actionName(Action::L2) == "l2");
     CHECK_FALSE(parseAction("jump"));
 }
+
+TEST_CASE("raw_keys_keep_left_and_right_modifiers_apart") {
+    constexpr unsigned kVkShift = 0x10, kVkControl = 0x11, kVkMenu = 0x12;
+    CHECK(inputCodeFromRawKey(kVkShift, 0x2A, false) == vk::LShift);
+    CHECK(inputCodeFromRawKey(kVkShift, 0x36, false) == vk::RShift);
+    CHECK(inputCodeFromRawKey(kVkControl, 0x1D, false) == vk::LCtrl);
+    CHECK(inputCodeFromRawKey(kVkControl, 0x1D, true) == vk::RCtrl);
+    CHECK(inputCodeFromRawKey(kVkMenu, 0x38, false) == vk::LAlt);
+    CHECK(inputCodeFromRawKey(kVkMenu, 0x38, true) == vk::RAlt);
+    CHECK(inputCodeFromRawKey('W', 0x11, false) == 'W');
+}
+
+TEST_CASE("raw_fake_keys_are_dropped") {
+    CHECK(inputCodeFromRawKey(0xFF, 0x2A, false) == code::None);  // escape-sequence filler
+    CHECK(inputCodeFromRawKey(0, 0, false) == code::None);
+    CHECK(inputCodeFromRawKey(0x1FF, 0, false) == code::None);
+}
