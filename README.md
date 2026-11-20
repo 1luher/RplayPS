@@ -31,6 +31,7 @@ GTA 6). Нужен только компьютер с Windows в той же д�
 | [docs/best-of.md](docs/best-of.md) | Что берём из других проектов и почему |
 | [docs/architecture.md](docs/architecture.md) | Как устроим программу: ввод, мышь → стик, калибровка, профили |
 | [docs/roadmap.md](docs/roadmap.md) | План по шагам и что сделать дома |
+| [docs/superpowers/plans/2026-11-20-rplayps-mvp.md](docs/superpowers/plans/2026-11-20-rplayps-mvp.md) | Подробный план первой версии (этапы 1–2) |
 | [docs/research.md](docs/research.md) | Обзор готовых решений |
 | [docs/keyboard-ds5.md](docs/keyboard-ds5.md) | Подробный разбор keyboard-ds5 |
 
