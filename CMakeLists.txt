@@ -20,11 +20,21 @@ target_include_directories(rplay_core PUBLIC "${CMAKE_SOURCE_DIR}/src" "${CMAKE_
 target_compile_options(rplay_core PRIVATE ${RPLAY_OPTS})
 target_compile_definitions(rplay_core PUBLIC ${RPLAY_DEFS})
 
+# ---------------------------------------------------------------- PS5 link (chiaki-ng core)
+file(GLOB RPLAY_PS5_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/ps5/*.cpp")
+add_library(rplay_ps5 STATIC ${RPLAY_PS5_SOURCES})
+target_link_libraries(rplay_ps5 PUBLIC rplay_core chiaki_core crypt32 shell32 ole32 iphlpapi ws2_32)
+target_compile_options(rplay_ps5 PRIVATE ${RPLAY_OPTS})
+
+add_executable(rplayctl "${CMAKE_SOURCE_DIR}/tools/rplayctl.cpp")
+target_link_libraries(rplayctl PRIVATE rplay_ps5)
+target_compile_options(rplayctl PRIVATE ${RPLAY_OPTS})
+
 # ---------------------------------------------------------------- tests
 enable_testing()
 file(GLOB RPLAY_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")
 add_executable(rplay_tests ${RPLAY_TEST_SOURCES})
-target_link_libraries(rplay_tests PRIVATE rplay_core)
+target_link_libraries(rplay_tests PRIVATE rplay_core rplay_ps5)
 target_compile_options(rplay_tests PRIVATE ${RPLAY_OPTS})
 target_compile_definitions(rplay_tests PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
 add_test(NAME rplay_tests COMMAND rplay_tests)
