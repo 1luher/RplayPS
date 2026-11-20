@@ -40,6 +40,20 @@ add_executable(inputcheck WIN32 "${CMAKE_SOURCE_DIR}/tools/inputcheck.cpp")
 target_link_libraries(inputcheck PRIVATE rplay_win)
 target_compile_options(inputcheck PRIVATE ${RPLAY_OPTS})
 
+# ---------------------------------------------------------------- ImGui + the app
+set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/third_party/imgui")
+add_library(tp_imgui STATIC
+  "${IMGUI_DIR}/imgui.cpp" "${IMGUI_DIR}/imgui_draw.cpp" "${IMGUI_DIR}/imgui_tables.cpp"
+  "${IMGUI_DIR}/imgui_widgets.cpp" "${IMGUI_DIR}/backends/imgui_impl_win32.cpp"
+  "${IMGUI_DIR}/backends/imgui_impl_dx11.cpp")
+target_include_directories(tp_imgui PUBLIC "${IMGUI_DIR}")
+target_link_libraries(tp_imgui PUBLIC d3d11 dxgi d3dcompiler dwmapi)
+target_compile_options(tp_imgui PRIVATE /W0 /utf-8 /MP)
+
+add_executable(rplayps WIN32 "${CMAKE_SOURCE_DIR}/src/app/main.cpp" "${CMAKE_SOURCE_DIR}/src/app/ui.cpp")
+target_link_libraries(rplayps PRIVATE rplay_ps5 rplay_win tp_imgui)
+target_compile_options(rplayps PRIVATE ${RPLAY_OPTS})
+
 # ---------------------------------------------------------------- tests
 enable_testing()
 file(GLOB RPLAY_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp")
