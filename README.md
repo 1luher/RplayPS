@@ -3,8 +3,30 @@
 Играть на PS5 клавиатурой и мышью в игры, которые их не поддерживают (в первую очередь
 GTA 6). Нужен только компьютер с Windows в той же домашней сети.
 
-> Статус: **идея и исследование**. Кода пока нет: собираем идеи, разбираем готовые решения и
-> составляем план.
+> Статус: **первая версия (MVP)**. Программа собирается, тесты проходят, ввод проверен.
+> Работа с настоящей PS5 ещё не проверена — чек-лист в [docs/notes-gta6.md](docs/notes-gta6.md).
+
+![Окно RplayPS](docs/screenshot.png)
+
+## Сборка
+Нужны Visual Studio 2022 Build Tools (C++) и CMake.
+
+```bash
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+```
+
+```bash
+cmake --build build --config Release
+```
+
+Получатся `build/Release/rplayps.exe` (программа), `rplayctl.exe` (консольная утилита),
+`inputcheck.exe` (проверка ввода без PS5) и `rplay_tests.exe` (тесты).
+
+## Как пользоваться
+1. Запустите `rplayps.exe`, привяжите PS5: адрес, account ID и PIN с экрана
+   **Настройки → Система → Дистанционное воспроизведение → Привязать устройство**.
+2. Нажмите **F8** — включится захват клавиатуры и мыши.
+3. Переключите монитор на вход PS5 и играйте. **F8** ещё раз — вернуть клавиатуру и мышь компьютеру.
 
 ## Как это будет работать
 
@@ -32,6 +54,7 @@ GTA 6). Нужен только компьютер с Windows в той же д�
 | [docs/architecture.md](docs/architecture.md) | Как устроим программу: ввод, мышь → стик, калибровка, профили |
 | [docs/roadmap.md](docs/roadmap.md) | План по шагам и что сделать дома |
 | [docs/superpowers/plans/2026-11-20-rplayps-mvp.md](docs/superpowers/plans/2026-11-20-rplayps-mvp.md) | Подробный план первой версии (этапы 1–2) |
+| [docs/vehicle-classes.md](docs/vehicle-classes.md) | Классы транспорта и что записывать для автоопределения |
 | [docs/research.md](docs/research.md) | Обзор готовых решений |
 | [docs/keyboard-ds5.md](docs/keyboard-ds5.md) | Подробный разбор keyboard-ds5 |
 
