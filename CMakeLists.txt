@@ -26,4 +26,5 @@ file(GLOB RPLAY_TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/tests/*.cpp"
 add_executable(rplay_tests ${RPLAY_TEST_SOURCES})
 target_link_libraries(rplay_tests PRIVATE rplay_core)
 target_compile_options(rplay_tests PRIVATE ${RPLAY_OPTS})
+target_compile_definitions(rplay_tests PRIVATE DOCTEST_CONFIG_USE_STD_HEADERS)
 add_test(NAME rplay_tests COMMAND rplay_tests)
