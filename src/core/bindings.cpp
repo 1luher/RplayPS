@@ -19,7 +19,8 @@ constexpr NamedCode kNamed[] = {
     {"Down", vk::Down},         {"Left", vk::Left},           {"Right", vk::Right},
     {"Mouse1", code::MouseLeft}, {"Mouse2", code::MouseRight}, {"Mouse3", code::MouseMiddle},
     {"Mouse4", code::MouseX1},  {"Mouse5", code::MouseX2},    {"WheelUp", code::WheelUp},
-    {"WheelDown", code::WheelDown},
+    {"WheelDown", code::WheelDown}, {"Home", vk::Home},         {"End", vk::End},
+    {"Insert", vk::Insert},    {"PageUp", vk::PageUp},       {"PageDown", vk::PageDown},
 };
 
 constexpr std::string_view kActionNames[kActionCount] = {

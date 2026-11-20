@@ -33,7 +33,8 @@ constexpr InputCode None = 0, MouseLeft = 0x101, MouseRight = 0x102, MouseMiddle
 // Windows VK values, so rplay_core and its tests do not depend on windows.h.
 namespace vk {
 constexpr InputCode Backspace = 0x08, Tab = 0x09, Enter = 0x0D, Esc = 0x1B, Space = 0x20, Left = 0x25,
-                    Up = 0x26, Right = 0x27, Down = 0x28, F1 = 0x70, F8 = 0x77, F12 = 0x7B, LShift = 0xA0,
+                    Up = 0x26, Right = 0x27, Down = 0x28, PageUp = 0x21, PageDown = 0x22, End = 0x23, Home = 0x24,
+                    Insert = 0x2D, F1 = 0x70, F8 = 0x77, F12 = 0x7B, LShift = 0xA0,
                     RShift = 0xA1, LCtrl = 0xA2, RCtrl = 0xA3, LAlt = 0xA4, RAlt = 0xA5;
 }
 

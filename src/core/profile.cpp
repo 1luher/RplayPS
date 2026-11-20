@@ -66,6 +66,7 @@ Layout footLayout() {
     bind(l, Action::DpadRight, vk::Right);     // detonate / partner menu
     bind(l, Action::Touchpad, 'M');            // map
     bind(l, Action::Options, vk::Esc);         // pause
+    bind(l, Action::PS, vk::Home);             // PS button (hold it to take over the console)
     return l;
 }
 
@@ -93,6 +94,7 @@ Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     bind(l, Action::DpadRight, vk::Right);     // indicator
     bind(l, Action::Touchpad, 'M');
     bind(l, Action::Options, vk::Esc);
+    bind(l, Action::PS, vk::Home);
     return l;
 }
 
@@ -114,6 +116,7 @@ Layout airLayout() {  // GTA 6 has one "air vehicles" scheme; mouse = pitch/roll
     bind(l, Action::DpadRight, vk::Right);
     bind(l, Action::Touchpad, 'M');
     bind(l, Action::Options, vk::Esc);
+    bind(l, Action::PS, vk::Home);
     return l;
 }
 

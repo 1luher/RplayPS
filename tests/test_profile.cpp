@@ -40,6 +40,10 @@ TEST_CASE("default_profile_has_a_layout_per_class") {
     CHECK(slot(p, ControlClass::Plane, Action::Circle) == 'D');
     CHECK(slot(p, ControlClass::Heli, Action::L3) == 'G');  // the game's one air scheme: L3 = landing gear
     CHECK(slot(p, ControlClass::Plane, Action::L3) == 'G');
+    for (size_t i = 0; i < kControlClassCount; ++i)  // hold PS (Home) to take over the console
+        CHECK(slot(p, static_cast<ControlClass>(i), Action::PS) == vk::Home);
+    CHECK(parseInputCode("Home") == vk::Home);
+    CHECK(inputCodeName(vk::PageDown) == "PageDown");
 }
 
 TEST_CASE("class_names_roundtrip") {
