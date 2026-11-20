@@ -74,7 +74,35 @@ void cleanupDevice() {
     g_device = nullptr;
 }
 
+// While the key editor waits, the next key / mouse button / wheel step becomes the binding.
+bool handleBindingInput(UINT msg, WPARAM wp, LPARAM lp) {
+    if (!g_app || !g_app->bindWaiting) return false;
+    const bool settled = GetTickCount64() - g_app->bindSinceTick > 250;  // ignore the click that started it
+    switch (msg) {
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+            if (wp == VK_ESCAPE) finishBinding(*g_app, std::nullopt, false);
+            else if (wp == VK_BACK || wp == VK_DELETE) finishBinding(*g_app, std::nullopt, true);
+            else
+                finishBinding(*g_app,
+                              inputCodeFromRawKey(static_cast<unsigned>(wp), (lp >> 16) & 0xFF, (lp >> 24) & 1),
+                              false);
+            return true;
+        case WM_LBUTTONDOWN: if (!settled) return false; finishBinding(*g_app, code::MouseLeft, false); return true;
+        case WM_RBUTTONDOWN: finishBinding(*g_app, code::MouseRight, false); return true;
+        case WM_MBUTTONDOWN: finishBinding(*g_app, code::MouseMiddle, false); return true;
+        case WM_XBUTTONDOWN:
+            finishBinding(*g_app, GET_XBUTTON_WPARAM(wp) == XBUTTON1 ? code::MouseX1 : code::MouseX2, false);
+            return true;
+        case WM_MOUSEWHEEL:
+            finishBinding(*g_app, GET_WHEEL_DELTA_WPARAM(wp) > 0 ? code::WheelUp : code::WheelDown, false);
+            return true;
+        default: return false;
+    }
+}
+
 LRESULT WINAPI wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (handleBindingInput(msg, wp, lp)) return 0;
     if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp)) return true;
     switch (msg) {
         case WM_SIZE:

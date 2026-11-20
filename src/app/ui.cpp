@@ -515,6 +515,131 @@ void drawKeys(App& app) {
     endCard();
 }
 
+// ------------------------------------------------------------------ key binding editor
+
+const char* padButtonRu(Action a) {
+    switch (a) {
+        case Action::Cross: return "Крест";
+        case Action::Circle: return "Круг";
+        case Action::Square: return "Квадрат";
+        case Action::Triangle: return "Треугольник";
+        case Action::DpadUp: return "D-pad ↑";
+        case Action::DpadDown: return "D-pad ↓";
+        case Action::DpadLeft: return "D-pad ←";
+        case Action::DpadRight: return "D-pad →";
+        case Action::L1: return "L1";
+        case Action::R1: return "R1";
+        case Action::L3: return "L3";
+        case Action::R3: return "R3";
+        case Action::Options: return "Options";
+        case Action::Create: return "Create";
+        case Action::Touchpad: return "Тачпад";
+        case Action::PS: return "PS";
+        case Action::L2: return "L2";
+        case Action::R2: return "R2";
+        case Action::MoveUp: return "Л. стик ↑";
+        case Action::MoveDown: return "Л. стик ↓";
+        case Action::MoveLeft: return "Л. стик ←";
+        case Action::MoveRight: return "Л. стик →";
+        case Action::Walk: return "модификатор";
+        case Action::Count: break;
+    }
+    return "";
+}
+
+// What the button does in GTA 6 for this class (docs/gta6-controls.md).
+const char* actionMeaningRu(ControlClass c, Action a) {
+    const bool air = c == ControlClass::Heli || c == ControlClass::Plane;
+    const bool vehicle = c == ControlClass::Ground || c == ControlClass::Water;
+    switch (a) {
+        case Action::MoveUp: return air ? "наклон вперёд (обычно мышь)" : vehicle ? "наклон вперёд (мото)" : "вперёд";
+        case Action::MoveDown: return air ? "наклон назад (обычно мышь)" : vehicle ? "наклон назад (мото)" : "назад";
+        case Action::MoveLeft: return air ? "крен влево (обычно мышь)" : vehicle ? "руль влево" : "влево";
+        case Action::MoveRight: return air ? "крен вправо (обычно мышь)" : vehicle ? "руль вправо" : "вправо";
+        case Action::Walk: return "шаг: стик наклоняется не до конца";
+        case Action::R2: return air ? (c == ControlClass::Plane ? "газ" : "вверх") : vehicle ? "газ" : "огонь";
+        case Action::L2: return air ? (c == ControlClass::Plane ? "сброс газа" : "вниз") : vehicle ? "тормоз / назад" : "прицел, говорить";
+        case Action::Cross: return air ? "—" : vehicle ? "ручной тормоз" : "прыжок, лазание, уклон";
+        case Action::Circle: return air ? "поворот вправо" : vehicle ? "пригнуться" : "присесть (держать — отдых)";
+        case Action::Square: return air ? "поворот влево" : vehicle ? "пинок дверью" : "ближний бой";
+        case Action::Triangle: return vehicle || air ? "выйти (держать — остановиться и выйти)" : "взаимодействие, сесть";
+        case Action::R1: return vehicle || air ? "стрельба" : "укрытие (держать — бросок)";
+        case Action::L1: return vehicle || air ? "оружие" : "убрать оружие (держать — колесо)";
+        case Action::L3: return c == ControlClass::Plane ? "шасси" : vehicle ? "гудок / нитро" : air ? "—" : "бег (ещё раз — спринт)";
+        case Action::R3: return "оглянуться назад";
+        case Action::DpadUp: return "телефон (держать — WAiNK)";
+        case Action::DpadDown: return vehicle ? "инфо о машине" : "HUD (держать — навигация)";
+        case Action::DpadLeft: return vehicle ? "поворотник (держать — меню машины)" : "сменить плечо (держать — радио)";
+        case Action::DpadRight: return vehicle ? "поворотник" : "детонатор (держать — напарник)";
+        case Action::Options: return "пауза";
+        case Action::Create: return "скриншот / запись";
+        case Action::Touchpad: return "карта";
+        case Action::PS: return "меню PS5";
+        case Action::Count: break;
+    }
+    return "";
+}
+
+void drawBindings(App& app) {
+    const Fonts& f = app.fonts;
+    beginCard("##keys_edit", icon::Keyboard, "Раскладка клавиш", f);
+    mutedText("Кликните по клавише и нажмите новую: клавиатура, кнопка или колёсико мыши. "
+              "Esc — отмена, Backspace — очистить. Сохраняется сразу.",
+              f);
+    if (ImGui::BeginTabBar("##keys_classes")) {
+        for (size_t i = 0; i < kControlClassCount; ++i) {
+            const auto c = static_cast<ControlClass>(i);
+            const std::string title = std::string(controlClassTitleRu(c)) + "##k";
+            if (ImGui::BeginTabItem(title.c_str())) {
+                if (app.keysClass != c) app.bindWaiting = false;
+                app.keysClass = c;
+                ImGui::EndTabItem();
+            }
+        }
+        ImGui::EndTabBar();
+    }
+    const Layout& layout = app.profile.layout(app.keysClass);
+    ImGui::BeginChild("##keys_list", ImVec2(0, 330), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    if (ImGui::BeginTable("##keys_table", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+        ImGui::TableSetupColumn("Действие", ImGuiTableColumnFlags_WidthStretch, 2.2f);
+        ImGui::TableSetupColumn("Кнопка", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Клавиша", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn("Ещё", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        for (size_t i = 0; i < kActionCount; ++i) {
+            const auto a = static_cast<Action>(i);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(actionMeaningRu(app.keysClass, a));
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+            ImGui::TextUnformatted(padButtonRu(a));
+            ImGui::PopStyleColor();
+            for (int s = 0; s < 2; ++s) {
+                ImGui::TableNextColumn();
+                const InputCode code = layout.bindings.slots[i][s];
+                const bool waiting = app.bindWaiting && app.bindAction == a && app.bindSlot == s;
+                std::string label = waiting ? "нажмите…" : code ? inputCodeName(code) : "—";
+                label += "##b" + std::to_string(i * 2 + s);
+                if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
+                if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)) && !app.input->captured()) {
+                    app.bindWaiting = true;
+                    app.bindAction = a;
+                    app.bindSlot = s;
+                    app.bindSinceTick = GetTickCount64();
+                    app.bindNote.clear();
+                }
+                if (waiting) ImGui::PopStyleColor();
+            }
+        }
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();
+    noteText(app.bindNote, col::Warn, f);
+    endCard();
+}
+
 std::filesystem::path newRecordingDir() {
     PWSTR videos = nullptr;
     std::filesystem::path base;
@@ -631,7 +756,28 @@ void drawUi(App& app) {
         drawKeys(app);
         ImGui::Dummy(ImVec2(0, 2));
         drawRecord(app);
+        ImGui::Dummy(ImVec2(0, 2));
+        drawBindings(app);
         ImGui::EndTable();
     }
     ImGui::End();
+}
+
+void finishBinding(App& app, std::optional<InputCode> code, bool clear) {
+    if (!app.bindWaiting) return;
+    app.bindWaiting = false;
+    if (!code && !clear) return;  // cancelled
+    if (code && (*code == vk::F8 || (*code >= vk::F1 && *code <= vk::F1 + 4))) {
+        app.bindNote = "F1–F5 и F8 заняты программой: выберите другую клавишу.";
+        return;
+    }
+    if (code && inputCodeName(*code).empty()) {
+        app.bindNote = "Эту клавишу пока нельзя назначить.";
+        return;
+    }
+    auto& slot = app.profile.layout(app.keysClass).bindings.slots[static_cast<size_t>(app.bindAction)];
+    slot[app.bindSlot] = clear ? code::None : *code;
+    if (slot[0] == code::None && slot[1] != code::None) std::swap(slot[0], slot[1]);
+    app.input->setProfile(app.profile);
+    saveProfile(app);
 }

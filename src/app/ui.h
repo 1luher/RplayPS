@@ -49,6 +49,14 @@ struct App {
     std::string saveNote;
     ControlClass editClass = ControlClass::Foot;  // which class the mouse tab edits
 
+    // Key binding editor: waiting for a key for (keysClass, bindAction, bindSlot).
+    ControlClass keysClass = ControlClass::Foot;
+    bool bindWaiting = false;
+    Action bindAction = Action::Cross;
+    int bindSlot = 0;
+    ULONGLONG bindSinceTick = 0;
+    std::string bindNote;
+
     Recorder recorder;  // training data for the vehicle detector
     std::string recordError;
 };
@@ -57,5 +65,8 @@ void loadProfile(App& app);
 void saveProfile(App& app);
 // Called on F8 when not captured: connects if needed, then captures input.
 void startCapture(App& app);
+// Key binding editor: the window procedure hands it the next key/mouse input while waiting.
+// clear = Backspace/Delete, cancel = Esc.
+void finishBinding(App& app, std::optional<InputCode> code, bool clear);
 // Draws the whole window contents; call between ImGui::NewFrame() and ImGui::Render().
 void drawUi(App& app);
