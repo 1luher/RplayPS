@@ -934,7 +934,7 @@ struct PlacedRow {
     Action a;
     const char* text;
     float h = 0;        // row height (long labels wrap to two lines in the small font)
-    bool small = false;
+    bool compact = false;
     bool anchored = false;
     ImVec2 anchor;      // controller-local units, see padAnchor()
 };
@@ -946,9 +946,9 @@ float labelRoom(float colW) { return colW - kChipW - kGlyphW - 26; }
 void measureRow(PlacedRow& r, float colW, const Fonts& f) {
     const float room = labelRoom(colW);
     ImGui::PushFont(f.semibold);
-    r.small = ImGui::CalcTextSize(r.text).x > room;
+    r.compact = ImGui::CalcTextSize(r.text).x > room;
     ImGui::PopFont();
-    ImGui::PushFont(r.small ? f.tiny : f.semibold);
+    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
     const float th = ImGui::CalcTextSize(r.text, nullptr, false, room).y;
     ImGui::PopFont();
     r.h = std::max(34.0f, th + 10);
@@ -963,9 +963,9 @@ void schemeRow(App& app, const PlacedRow& r, ImVec2 p, float colW, bool leftSide
     padGlyph(dl, ImVec2(gx, mid), r.a, f);
 
     const float room = labelRoom(colW);
-    ImGui::PushFont(r.small ? f.tiny : f.semibold);
+    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
     const ImVec2 ts = ImGui::CalcTextSize(r.text, nullptr, false, room);
-    const float tx = leftSide ? (r.small ? p.x + kChipW + 12 : gx - kGlyphW * 0.5f - 10 - ts.x) : gx + kGlyphW * 0.5f + 10;
+    const float tx = leftSide ? (r.compact ? p.x + kChipW + 12 : gx - kGlyphW * 0.5f - 10 - ts.x) : gx + kGlyphW * 0.5f + 10;
     dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(tx, mid - ts.y * 0.5f), col::Text, r.text, nullptr, room);
     ImGui::PopFont();
 
