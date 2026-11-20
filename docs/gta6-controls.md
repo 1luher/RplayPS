@@ -1,4 +1,4 @@
-# Управление GTA 6: всё, что нужно для RplayPS
+# Управление GTA 6: всё, что нужно для RPlay K&M
 
 Собрано 2026-11-20 из сторонних гайдов, вышедших в день релиза: [gtabase](https://www.gtabase.com/articles/gta-6/gta-6-controls-guide-ps5-xbox-button-layout),
 [wikigtavi](https://www.wikigtavi.com/guides/gta-6-controls-guide), [outputlag](https://outputlag.com/guides/gta-6-controls/),
@@ -15,7 +15,7 @@
 | **Classic** | Бег на ✕, прыжок на □, ближний бой на ○, присесть на L3 ⚠️ (gtabase пишет просто «меняет местами бег и присед») |
 | **Left-Handed** | Левая и правая стороны меняются: стики, L1/R1, L2/R2 |
 
-**Для RplayPS берём Default**: нам всё равно, где кнопка, а бег на L3 удобнее для клавиатуры.
+**Для RPlay K&M берём Default**: нам всё равно, где кнопка, а бег на L3 удобнее для клавиатуры.
 
 ## 2. Раскладка геймпада по режимам (Default)
 
@@ -105,7 +105,7 @@
 Каяк, поезд и трамвай, прицепы и эвакуатор, спецтехника с ковшом и стрелой, мини-игры, рыбалка
 (в настройках есть «Fishing: Rotate» — значит, там вращение стика).
 
-## 3. Что из этого следует для RplayPS
+## 3. Что из этого следует для RPlay K&M
 
 ### Уже работает в текущей версии
 - **Нажать, держать, двойное нажатие** (△, ○, □, L1, D-pad). Клавиша передаёт нажатие на всю
@@ -144,22 +144,22 @@
    спринт или выключает бег. Есть ли в настройках «Бег: удерживать / переключать» ⚠️.
 8. **Велосипед:** педали на R2, а не постукивание, поэтому отдельный класс скорее всего не нужен ✓.
 
-## 4. Настройки в самой игре для игры через RplayPS
+## 4. Настройки в самой игре для игры через RPlay K&M
 | Настройка (Controller / Gameplay) | Поставить | Зачем |
 |---|---|---|
 | Deadzone (Right Stick), по умолчанию 4 | минимум, при котором камера не плывёт | точнее мелкие движения мыши |
 | Look Acceleration и Aim Acceleration, по умолчанию 7 | минимум (0, если можно) | ускорение мешает мыши: одно и то же движение даёт разный поворот |
-| Aim Response Curve: Standard / Linear / Precision / Aggressive | **Linear** | кривую тогда задаём сами в RplayPS |
-| Horizontal/Vertical Look и Aim Sensitivity, по умолчанию 7 | ближе к максимуму | чтобы быстрый взмах мышью успевал развернуть камеру; тонкость настроим ползунком в RplayPS |
+| Aim Response Curve: Standard / Linear / Precision / Aggressive | **Linear** | кривую тогда задаём сами в RPlay K&M |
+| Horizontal/Vertical Look и Aim Sensitivity, по умолчанию 7 | ближе к максимуму | чтобы быстрый взмах мышью успевал развернуть камеру; тонкость настроим ползунком в RPlay K&M |
 | Targeting: Lock-On / Partial / Free Aim | по вкусу (Partial помогает, Free Aim — «как на ПК») | — |
-| **Adaptive Triggers Resistance / Vibration** | **оставить ВКЛ** | по ним RplayPS будет узнавать «сел в машину» |
+| **Adaptive Triggers Resistance / Vibration** | **оставить ВКЛ** | по ним RPlay K&M будет узнавать «сел в машину» |
 | Adaptive Speed Limiter | выключить | см. пункт 3.4 |
-| Inverted: Aircraft Movement (по умолчанию ВКЛ) | по вкусу, но запомнить | RplayPS должен знать, инвертировано ли |
+| Inverted: Aircraft Movement (по умолчанию ВКЛ) | по вкусу, но запомнить | RPlay K&M должен знать, инвертировано ли |
 | Touch Pad Button | Map | тачпад = карта |
 | Camera Shake / Camera Bob | по вкусу (многие советуют выкл/меньше) | — |
 
 Клавиатуру и мышь в GTA 6 на PS5 официально **не поддерживают**: подтверждения от Rockstar нет
-([beebom](https://beebom.com/gta-6-keyboard-mouse-support/)). Поэтому RplayPS и нужен.
+([beebom](https://beebom.com/gta-6-keyboard-mouse-support/)). Поэтому RPlay K&M и нужен.
 
 ## 5. Проверить дома (дополнить [notes-gta6.md](notes-gta6.md))
 - [ ] Фото экрана «Схема управления» для каждого раздела: пешком, транспорт, полёт, вода, плавание, парашют

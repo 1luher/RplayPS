@@ -1,33 +1,33 @@
-# RplayPS: клавиатура и мышь для PS5
+# RPlay K&M: клавиатура и мышь для GTA 6 на PS5
 
-Играть на PS5 клавиатурой и мышью в игры, которые их не поддерживают (в первую очередь
-GTA 6). Нужен только компьютер с Windows в той же домашней сети.
+Играть в GTA 6 на PS5 клавиатурой и мышью: программа сделана только под эту игру, раскладка
+повторяет её схему управления. Нужен только компьютер с Windows в той же домашней сети.
 
 > Статус: **первая версия (MVP)**. Программа собирается, тесты проходят, ввод проверен.
 > Работа с настоящей PS5 ещё не проверена — чек-лист в [docs/notes-gta6.md](docs/notes-gta6.md).
 
-![Окно RplayPS](docs/screenshot.png)
+![Окно RPlay K&M](docs/screenshot.png)
 
 ## Скачать
-Готовая сборка: [последний релиз](https://github.com/1luher/RplayPS/releases/latest) — `RplayPS-windows-x64.zip`,
-распаковать и запустить `rplayps.exe`. Сборка каждого коммита — во вкладке [Actions](https://github.com/1luher/RplayPS/actions).
+Готовая сборка: [последний релиз](https://github.com/1luher/RplayPS/releases/latest) — `RPlayKM-windows-x64.zip`,
+распаковать и запустить `rplaykm.exe`. Сборка каждого коммита — во вкладке [Actions](https://github.com/1luher/RplayPS/actions).
 
 ## Сборка
 Нужны Visual Studio 2022 Build Tools (C++) и CMake.
 
 ```bash
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake -S . -B build -A x64
 ```
 
 ```bash
 cmake --build build --config Release
 ```
 
-Получатся `build/Release/rplayps.exe` (программа), `rplayctl.exe` (консольная утилита),
+Получатся `build/Release/rplaykm.exe` (программа), `rplayctl.exe` (консольная утилита),
 `inputcheck.exe` (проверка ввода без PS5) и `rplay_tests.exe` (тесты).
 
 ## Как пользоваться
-1. Запустите `rplayps.exe`, привяжите PS5: адрес, account ID и PIN с экрана
+1. Запустите `rplaykm.exe`, привяжите PS5: адрес, account ID и PIN с экрана
    **Настройки → Система → Дистанционное воспроизведение → Привязать устройство**.
 2. Нажмите **F8** — включится захват клавиатуры и мыши.
 3. Переключите монитор на вход PS5 и играйте. **F8** ещё раз — вернуть клавиатуру и мышь компьютеру.
@@ -38,7 +38,7 @@ cmake --build build --config Release
 Клавиатура + мышь
       │  Windows Raw Input (1000 Гц)
       ▼
-[RplayPS на ПК]  мышь → правый стик: кривая, калибровка, профили
+[RPlay K&M на ПК]  мышь → правый стик: кривая, калибровка, профили
       │  протокол PS Remote Play по локальной сети (только управление)
       ▼
 [PS5]  думает, что подключён обычный геймпад
@@ -69,6 +69,6 @@ cmake --build build --config Release
 **AGPL-3.0**.
 
 ## Предупреждение
-Это неофициальный проект, он не связан с Sony или Rockstar. Неофициальный клиент Remote Play
+Это неофициальный проект под GTA 6, он не связан с Sony, Rockstar Games или Take-Two. GTA и Grand Theft Auto — их товарные знаки, здесь они только указывают, для какой игры программа. Неофициальный клиент Remote Play
 может нарушать правила PSN. Эмуляция геймпада с клавиатуры и мыши в онлайн-режимах может
 нарушать правила игры. Цель проекта — одиночная игра.

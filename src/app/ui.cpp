@@ -90,8 +90,8 @@ void endCard() { ImGui::EndChild(); }
 
 bool primaryButton(const char* label, float width = 0) {
     ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(IM_COL32(255, 116, 158, 255)));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(IM_COL32(226, 66, 114, 255)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(IM_COL32(255, 150, 226, 255)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(IM_COL32(228, 88, 196, 255)));
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(IM_COL32(255, 255, 255, 255)));
     const bool pressed = ImGui::Button(label, ImVec2(width, 0));
     ImGui::PopStyleColor(4);
@@ -157,25 +157,6 @@ bool sliderInt(const char* label, const char* hint, int* v, int lo, int hi, cons
     return changed;
 }
 
-// "прыжок" -> "Прыжок" (UTF-8 Cyrillic and Latin).
-std::string capitalized(const char* s) {
-    std::string out(s);
-    if (out.size() >= 2) {
-        auto* b = reinterpret_cast<unsigned char*>(out.data());
-        if (b[0] == 0xD0 && b[1] >= 0xB0 && b[1] <= 0xBF) {  // а..п
-            b[1] -= 0x20;
-        } else if (b[0] == 0xD1 && b[1] >= 0x80 && b[1] <= 0x8F) {  // р..я
-            b[0] = 0xD0;
-            b[1] += 0x20;
-        } else if (b[0] == 0xD1 && b[1] == 0x91) {  // ё
-            b[0] = 0xD0;
-            b[1] = 0x81;
-        }
-    }
-    if (!out.empty() && out[0] >= 'a' && out[0] <= 'z') out[0] = static_cast<char>(out[0] - 'a' + 'A');
-    return out;
-}
-
 bool inputField(const char* label, const char* hint, char* buf, size_t size, const Fonts& f,
                 ImGuiInputTextFlags flags = 0) {
     ImGui::PushFont(f.tiny);
@@ -193,7 +174,7 @@ void stickView(const char* label, Stick s, float radius, const Fonts& f) {
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const ImVec2 c(p.x + radius, p.y + radius);
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddCircleFilled(c, radius, IM_COL32(13, 13, 17, 255), 64);
+    dl->AddCircleFilled(c, radius, col::Well, 64);
     dl->AddCircle(c, radius, col::Line, 64, 1.5f);
     dl->AddCircle(c, radius * 0.5f, withAlpha(col::Line, 140), 48, 1.0f);
     dl->AddLine(ImVec2(c.x - radius + 8, c.y), ImVec2(c.x + radius - 8, c.y), withAlpha(col::Line, 160));
@@ -223,7 +204,7 @@ void statTile(const char* label, const char* value, const char* unit, float widt
     ImGui::BeginGroup();
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const float h = 68;
-    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + width, p.y + h), IM_COL32(13, 13, 17, 255), 10);
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + width, p.y + h), col::Well, 10);
     ImGui::SetCursorScreenPos(ImVec2(p.x + 12, p.y + 8));
     ImGui::PushFont(f.tiny);
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
@@ -257,7 +238,7 @@ void triggerBar(const char* label, std::uint8_t value, const Fonts& f) {
     const float w = ImGui::GetContentRegionAvail().x, h = 8;
     const float y = p.y + 6;
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w, y + h), IM_COL32(13, 13, 17, 255), h);
+    dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w, y + h), col::Well, h);
     if (value) dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w * value / 255.0f, y + h), col::Accent, h);
     ImGui::Dummy(ImVec2(w, 20));
 }
@@ -272,11 +253,11 @@ void drawHeader(App& app) {
         state = app.linkState;
     }
     ImGui::PushFont(f.title);
-    ImGui::TextUnformatted("RplayPS");
+    ImGui::TextUnformatted("RPlay K&M");
     ImGui::PopFont();
     ImGui::SameLine();
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
-    mutedText("клавиатура и мышь для PS5", f);
+    mutedText("клавиатура и мышь для GTA 6 на PS5", f);
 
     // Right side: link state pill.
     const StateLook look = app.consoleOnly ? StateLook{"Без консоли", col::Muted} : stateLook(state);
@@ -671,136 +652,398 @@ void drawKeys(App& app) {
 }
 
 // ------------------------------------------------------------------ key binding editor
+// Mirrors the game's Settings → Control scheme screen (Default scheme): the modes on the left, the
+// controller in the middle, what every button does in that mode, and our key for every button.
+// Labels are copied from the game's screens (GTA 6, 2026-11-21).
 
-const char* padButtonRu(Action a) {
-    switch (a) {
-        case Action::Cross: return "Крест";
-        case Action::Circle: return "Круг";
-        case Action::Square: return "Квадрат";
-        case Action::Triangle: return "Треугольник";
-        case Action::DpadUp: return "D-pad ↑";
-        case Action::DpadDown: return "D-pad ↓";
-        case Action::DpadLeft: return "D-pad ←";
-        case Action::DpadRight: return "D-pad →";
-        case Action::L1: return "L1";
-        case Action::R1: return "R1";
-        case Action::L3: return "L3";
-        case Action::R3: return "R3";
-        case Action::Options: return "Options";
-        case Action::Create: return "Create";
-        case Action::Touchpad: return "Тачпад";
-        case Action::PS: return "PS";
-        case Action::L2: return "L2";
-        case Action::R2: return "R2";
-        case Action::MoveUp: return "Л. стик ↑";
-        case Action::MoveDown: return "Л. стик ↓";
-        case Action::MoveLeft: return "Л. стик ←";
-        case Action::MoveRight: return "Л. стик →";
-        case Action::Walk: return "модификатор";
-        case Action::Soft: return "модификатор";
-        case Action::Count: break;
-    }
-    return "";
+constexpr Action kLeftStick = Action::MoveUp;  // row marker: movement keys (in the air: the mouse)
+constexpr Action kRightStick = Action::Count;  // row marker: the camera, i.e. the mouse
+
+struct SchemeRow {
+    Action a = Action::Count;
+    const char* text = nullptr;  // nullptr ends the list
+};
+
+struct Scheme {
+    const char* title;
+    ControlClass edit, also;  // layouts this screen edits; also == edit when there is only one
+    Action extra;             // our own modifier shown under the buttons, Action::Count = none
+    const char* extraText;
+    SchemeRow left[10], right[10];
+};
+
+constexpr ControlClass kFoot = ControlClass::Foot, kGround = ControlClass::Ground, kWater = ControlClass::Water,
+                       kHeli = ControlClass::Heli, kPlane = ControlClass::Plane;
+
+const Scheme kSchemes[] = {
+    {"Пешком", kFoot, kFoot, Action::Walk, "ШАГ (НАШ МОДИФИКАТОР)",
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "СНАРЯЖЕНИЕ"}, {Action::L2, "ПРИЦЕЛИВАНИЕ / ВЗАИМОДЕЙСТВИЕ"},
+      {Action::DpadUp, "ТЕЛЕФОН / ПРИЛОЖЕНИЕ WAINK"}, {Action::DpadLeft, "МЕНЮ РАДИО"},
+      {Action::DpadDown, "ЦЕЛЬ / БЫСТРАЯ НАВИГАЦИЯ"}, {Action::DpadRight, "МЕНЮ ПАРТНЁРА"}, {Action::L3, "БЕГ"},
+      {kLeftStick, "ДВИЖЕНИЕ"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "УКРЫТИЕ"}, {Action::R2, "ВЫСТРЕЛИТЬ"},
+      {Action::Triangle, "ВЗАИМОДЕЙСТВОВАТЬ"}, {Action::Square, "БЛИЖНИЙ БОЙ"}, {Action::Circle, "ПРИСЕСТЬ / ОТДОХНУТЬ"},
+      {Action::Cross, "ПРЫЖОК / ЛАЗАНИЕ"}, {Action::R3, "ПОСМОТРЕТЬ НАЗАД"}, {kRightStick, "ОБЗОР"}}},
+    {"Прицеливание", kFoot, kFoot, Action::Count, nullptr,
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "СНАРЯЖЕНИЕ"}, {Action::L2, "ПРИЦЕЛИВАНИЕ / ВЗАИМОДЕЙСТВИЕ"},
+      {Action::DpadUp, "УВЕЛИЧЕНИЕ КРАТНОСТИ"}, {Action::DpadLeft, "СМЕНИТЬ ПЛЕЧО"},
+      {Action::DpadDown, "УМЕНЬШЕНИЕ КРАТНОСТИ"}, {Action::DpadRight, "ПОДОРВАТЬ"}, {Action::L3, "БЕГ"},
+      {kLeftStick, "ДВИЖЕНИЕ"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "БЫСТРЫЙ БРОСОК / УКРЫТИЕ"}, {Action::R2, "ВЫСТРЕЛИТЬ"},
+      {Action::Triangle, "БЫСТРАЯ СМЕНА ОРУЖИЯ"}, {Action::Square, "БЛИЖНИЙ БОЙ"}, {Action::Circle, "ПРИСЕСТЬ"},
+      {Action::R3, "МАСШТАБ / ТРАЕКТОРИЯ БРОСКА"}, {kRightStick, "ОБЗОР"}}},
+    {"Ближний бой", kFoot, kFoot, Action::Count, nullptr,
+     {{Action::Touchpad, "КАРТА"}, {Action::L2, "ЗАХВАТ ЦЕЛИ / ДВИЖЕНИЕ БОКОМ"}, {kLeftStick, "ДВИЖЕНИЕ"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R2, "СХВАТИТЬ"}, {Action::Square, "УДАР КУЛАКОМ / УДАР НОГОЙ"},
+      {Action::Cross, "БЛОК / УКЛОНЕНИЕ"}, {kRightStick, "ОБЗОР"}}},
+    {"Наземный и водный транспорт", kGround, kWater, Action::Soft, "МЯГКИЙ ГАЗ / ТОРМОЗ (НАШ)",
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "КОБУРА / СНАРЯЖЕНИЕ"}, {Action::L2, "ТОРМОЗ / ЗАДНИЙ ХОД"},
+      {Action::DpadUp, "ТЕЛЕФОН / ВЗАИМОДЕЙСТВОВАТЬ"}, {Action::DpadLeft, "ЛЕВЫЙ ПОВОРОТНИК / МЕНЮ ТРАНСПОРТА"},
+      {Action::DpadDown, "ЦЕЛЬ / БЫСТРАЯ НАВИГАЦИЯ"}, {Action::DpadRight, "ПРАВЫЙ ПОВОРОТНИК / МЕНЮ ПАРТНЁРА"},
+      {Action::L3, "КЛАКСОН / ЗАКИСЬ АЗОТА"}, {kLeftStick, "ПОВЕРНУТЬ (МОТО: НАКЛОН)"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "ВЫСТРЕЛИТЬ"}, {Action::R2, "УСКОРЕНИЕ"},
+      {Action::Triangle, "ПОКИНУТЬ ТРАНСПОРТ"}, {Action::Square, "БЛИЖНИЙ БОЙ"}, {Action::Circle, "ФАРЫ / ПРИГНУТЬСЯ"},
+      {Action::Cross, "РУЧНОЙ ТОРМОЗ"}, {Action::R3, "ПОСМОТРЕТЬ НАЗАД"}, {kRightStick, "ОБЗОР"}}},
+    {"Воздушный транспорт", kHeli, kPlane, Action::Count, nullptr,
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "КОБУРА / СНАРЯЖЕНИЕ"}, {Action::L2, "СБРОСИТЬ ГАЗ"},
+      {Action::DpadUp, "МОБИЛЬНЫЙ ТЕЛЕФОН"}, {Action::DpadLeft, "РАДИО / МЕНЮ ТРАНСПОРТА"},
+      {Action::DpadDown, "ЦЕЛЬ / БЫСТРАЯ НАВИГАЦИЯ"}, {Action::DpadRight, "МЕНЮ ПАРТНЁРА"}, {Action::L3, "ШАССИ"},
+      {kLeftStick, "ТАНГАЖ / КРЕН"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "ВЫСТРЕЛИТЬ"}, {Action::R2, "ПРИБАВИТЬ ГАЗ"},
+      {Action::Triangle, "ПОКИНУТЬ ТРАНСПОРТ"}, {Action::Square, "КУРС ВЛЕВО"}, {Action::Circle, "КУРС ВПРАВО"},
+      {Action::R3, "ПОСМОТРЕТЬ НАЗАД"}, {kRightStick, "ОБЗОР"}}},
+    {"Велосипед", kGround, kWater, Action::Soft, "МЯГКИЕ ПЕДАЛИ / ТОРМОЗ (НАШ)",
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "КОБУРА / СНАРЯЖЕНИЕ"}, {Action::L2, "ТОРМОЗ / ЗАДНИЙ ХОД"},
+      {Action::DpadUp, "ТЕЛЕФОН / ВЗАИМОДЕЙСТВОВАТЬ"}, {Action::DpadDown, "ЦЕЛЬ / БЫСТРАЯ НАВИГАЦИЯ"},
+      {Action::DpadRight, "МЕНЮ ПАРТНЁРА"}, {Action::L3, "ЗВОНОК"}, {kLeftStick, "ПОВОРОТ / НАКЛОН"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "ВЫСТРЕЛИТЬ"}, {Action::R2, "ПЕДАЛИ / ДВИЖЕНИЕ ВПЕРЁД"},
+      {Action::Triangle, "СЛЕЗТЬ"}, {Action::Square, "БЛИЖНИЙ БОЙ"}, {Action::Circle, "ПРЫЖОК"},
+      {Action::Cross, "УСКОРЕНИЕ"}, {Action::R3, "ПОСМОТРЕТЬ НАЗАД"}, {kRightStick, "ОБЗОР"}}},
+    {"Плавание", kFoot, kFoot, Action::Count, nullptr,
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "КОБУРА / СНАРЯЖЕНИЕ"}, {Action::L2, "ПРИЦЕЛИВАНИЕ / ДВИЖЕНИЕ БОКОМ"},
+      {Action::DpadLeft, "РАДИО"}, {Action::DpadDown, "ЦЕЛЬ / БЫСТРАЯ НАВИГАЦИЯ"},
+      {Action::DpadRight, "МЕНЮ ПАРТНЁРА"}, {Action::L3, "БЫСТРОЕ ПЛАВАНИЕ"}, {kLeftStick, "ДВИЖЕНИЕ"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "НЫРНУТЬ"}, {Action::R2, "ВЫСТРЕЛИТЬ"}, {Action::Square, "БЛИЖНИЙ БОЙ"},
+      {Action::Cross, "ВЫНЫРНУТЬ"}, {Action::R3, "ПОСМОТРЕТЬ НАЗАД"}, {kRightStick, "ОБЗОР"}}},
+    {"Парашют", kFoot, kFoot, Action::Count, nullptr,
+     {{Action::Touchpad, "КАРТА"}, {Action::L1, "СНАРЯЖЕНИЕ"}, {Action::L2, "ЛЕВАЯ КЛЕВАНТА"},
+      {Action::DpadUp, "ПРИЛОЖЕНИЕ WAINK"}, {Action::DpadLeft, "МЕНЮ РАДИО"}, {Action::DpadDown, "БЫСТРАЯ НАВИГАЦИЯ"},
+      {Action::DpadRight, "МЕНЮ ПАРТНЁРА"}, {kLeftStick, "ПОВЕРНУТЬ"}},
+     {{Action::Options, "ПАУЗА"}, {Action::R1, "ВЫСТРЕЛИТЬ"}, {Action::R2, "ПРАВАЯ КЛЕВАНТА"},
+      {Action::Triangle, "ОТЦЕПИТЬ ПАРАШЮТ"}, {Action::Cross, "РАСКРЫТЬ ПАРАШЮТ"}, {Action::R3, "ПОСМОТРЕТЬ НАЗАД"},
+      {kRightStick, "ОБЗОР"}}},
+};
+constexpr int kSchemeCount = static_cast<int>(std::size(kSchemes));
+
+constexpr ImU32 kGlyphInk = IM_COL32(255, 255, 255, 255);
+constexpr ImU32 kGlyphDark = IM_COL32(64, 28, 118, 255);  // text on white glyphs and the selected mode
+
+void centeredText(ImDrawList* dl, ImVec2 c, ImU32 color, const char* text, ImFont* font) {
+    ImGui::PushFont(font);
+    const ImVec2 ts = ImGui::CalcTextSize(text);
+    dl->AddText(ImVec2(c.x - ts.x * 0.5f, c.y - ts.y * 0.5f), color, text);
+    ImGui::PopFont();
 }
 
-// What the button does in GTA 6 for this class (docs/gta6-controls.md).
-const char* actionMeaningRu(ControlClass c, Action a) {
-    const bool air = c == ControlClass::Heli || c == ControlClass::Plane;
-    const bool vehicle = c == ControlClass::Ground || c == ControlClass::Water;
+// The small button icon the game prints next to each label.
+void padGlyph(ImDrawList* dl, ImVec2 c, Action a, const Fonts& f) {
+    const float r = 11;
+    const auto ring = [&] { dl->AddCircle(c, r, kGlyphInk, 24, 1.6f); };
+    const auto dpad = [&](int lit) {  // 0 up, 1 down, 2 left, 3 right
+        const ImVec2 arms[4][2] = {{{-3, -10}, {3, -3}}, {{-3, 3}, {3, 10}}, {{-10, -3}, {-3, 3}}, {{3, -3}, {10, 3}}};
+        for (int i = 0; i < 4; ++i)
+            dl->AddRectFilled(ImVec2(c.x + arms[i][0].x, c.y + arms[i][0].y),
+                              ImVec2(c.x + arms[i][1].x, c.y + arms[i][1].y),
+                              i == lit ? kGlyphInk : withAlpha(kGlyphInk, 80), 1.5f);
+    };
+    const auto shoulder = [&](const char* name) {
+        dl->AddRectFilled(ImVec2(c.x - 13, c.y - 9), ImVec2(c.x + 13, c.y + 9), kGlyphInk, 4);
+        centeredText(dl, c, kGlyphDark, name, f.tiny);
+    };
     switch (a) {
-        case Action::MoveUp: return air ? "наклон вперёд (обычно мышь)" : vehicle ? "наклон вперёд (мото)" : "вперёд";
-        case Action::MoveDown: return air ? "наклон назад (обычно мышь)" : vehicle ? "наклон назад (мото)" : "назад";
-        case Action::MoveLeft: return air ? "крен влево (обычно мышь)" : vehicle ? "руль влево" : "влево";
-        case Action::MoveRight: return air ? "крен вправо (обычно мышь)" : vehicle ? "руль вправо" : "вправо";
-        case Action::Walk: return "шаг: стик наклоняется не до конца";
-        case Action::Soft: return "мягкий газ / тормоз (L2, R2 не в пол)";
-        case Action::R2: return air ? (c == ControlClass::Plane ? "газ" : "вверх") : vehicle ? "газ" : "огонь";
-        case Action::L2: return air ? (c == ControlClass::Plane ? "сброс газа" : "вниз") : vehicle ? "тормоз / назад" : "прицел, говорить";
-        case Action::Cross: return air ? "—" : vehicle ? "ручной тормоз" : "прыжок, лазание, уклон";
-        case Action::Circle: return air ? "поворот вправо" : vehicle ? "фары (держать — пригнуться)" : "присесть (держать — отдых)";
-        case Action::Square: return air ? "поворот влево" : vehicle ? "пинок дверью" : "ближний бой";
+        case Action::Cross:
+            ring();
+            dl->AddLine(ImVec2(c.x - 4.5f, c.y - 4.5f), ImVec2(c.x + 4.5f, c.y + 4.5f), kGlyphInk, 1.6f);
+            dl->AddLine(ImVec2(c.x - 4.5f, c.y + 4.5f), ImVec2(c.x + 4.5f, c.y - 4.5f), kGlyphInk, 1.6f);
+            break;
+        case Action::Circle: ring(); dl->AddCircle(c, 5, kGlyphInk, 16, 1.6f); break;
+        case Action::Square:
+            ring();
+            dl->AddRect(ImVec2(c.x - 4.5f, c.y - 4.5f), ImVec2(c.x + 4.5f, c.y + 4.5f), kGlyphInk, 0, 0, 1.6f);
+            break;
         case Action::Triangle:
-            return c == ControlClass::Plane ? "выйти; на воде — взлёт"
-                   : vehicle || air       ? "выйти (держать — остановиться и выйти)"
-                                          : "взаимодействие, сесть";
-        case Action::R1: return vehicle || air ? "стрельба" : "укрытие (держать — бросок)";
-        case Action::L1: return vehicle || air ? "оружие" : "убрать оружие (держать — колесо)";
-        case Action::L3: return c == ControlClass::Plane ? "шасси" : vehicle ? "гудок / нитро / сирена" : air ? "—" : "бег (ещё раз — спринт)";
-        case Action::R3: return "оглянуться назад";
-        case Action::DpadUp: return "телефон (держать — WAiNK)";
-        case Action::DpadDown: return vehicle ? "инфо о машине" : "HUD (держать — навигация)";
-        case Action::DpadLeft: return vehicle ? "поворотник (держать — меню машины)" : "сменить плечо (держать — радио)";
-        case Action::DpadRight: return vehicle ? "поворотник" : "детонатор (держать — напарник)";
-        case Action::Options: return "пауза";
-        case Action::Create: return "скриншот / запись";
-        case Action::Touchpad: return "карта";
-        case Action::PS: return "меню PS5";
-        case Action::Count: break;
+            ring();
+            dl->AddTriangle(ImVec2(c.x, c.y - 5.5f), ImVec2(c.x - 5.5f, c.y + 4), ImVec2(c.x + 5.5f, c.y + 4), kGlyphInk,
+                            1.6f);
+            break;
+        case Action::L1: shoulder("L1"); break;
+        case Action::R1: shoulder("R1"); break;
+        case Action::L2: shoulder("L2"); break;
+        case Action::R2: shoulder("R2"); break;
+        case Action::L3: ring(); centeredText(dl, c, kGlyphInk, "L3", f.tiny); break;
+        case Action::R3: ring(); centeredText(dl, c, kGlyphInk, "R3", f.tiny); break;
+        case kLeftStick: dl->AddCircleFilled(c, r, kGlyphInk, 24); centeredText(dl, c, kGlyphDark, "L", f.tiny); break;
+        case kRightStick: dl->AddCircleFilled(c, r, kGlyphInk, 24); centeredText(dl, c, kGlyphDark, "R", f.tiny); break;
+        case Action::DpadUp: dpad(0); break;
+        case Action::DpadDown: dpad(1); break;
+        case Action::DpadLeft: dpad(2); break;
+        case Action::DpadRight: dpad(3); break;
+        case Action::Touchpad: dl->AddRectFilled(ImVec2(c.x - 11, c.y - 6), ImVec2(c.x + 11, c.y + 6), kGlyphInk, 3); break;
+        case Action::Options: dl->AddRectFilled(ImVec2(c.x - 3, c.y - 8), ImVec2(c.x + 3, c.y + 8), kGlyphInk, 3); break;
+        default: centeredText(dl, c, kGlyphInk, icon::Keyboard, f.body); break;  // our own modifiers
     }
-    return "";
+}
+
+// A white DualSense, as in the middle of the game's screen. s = 1: 300 x 194 px, c = body centre.
+void drawDualSense(ImDrawList* dl, ImVec2 c, float s) {
+    const auto P = [&](float x, float y) { return ImVec2(c.x + x * s, c.y + y * s); };
+    const ImU32 body = IM_COL32(246, 246, 250, 255), shade = IM_COL32(206, 206, 218, 255);
+    const ImU32 black = IM_COL32(28, 26, 36, 255);
+    const auto outline = [&](float ox, float oy) {
+        const auto Q = [&](float x, float y) { return P(x + ox, y + oy); };
+        dl->PathClear();
+        dl->PathLineTo(Q(60, -78));
+        dl->PathBezierCubicCurveTo(Q(110, -80), Q(128, -60), Q(136, -30));
+        dl->PathBezierCubicCurveTo(Q(150, 20), Q(162, 80), Q(140, 98));
+        dl->PathBezierCubicCurveTo(Q(122, 112), Q(100, 100), Q(90, 80));
+        dl->PathBezierCubicCurveTo(Q(78, 55), Q(60, 42), Q(0, 44));
+        dl->PathBezierCubicCurveTo(Q(-60, 42), Q(-78, 55), Q(-90, 80));
+        dl->PathBezierCubicCurveTo(Q(-100, 100), Q(-122, 112), Q(-140, 98));
+        dl->PathBezierCubicCurveTo(Q(-162, 80), Q(-150, 20), Q(-136, -30));
+        dl->PathBezierCubicCurveTo(Q(-128, -60), Q(-110, -80), Q(-60, -78));
+    };
+    dl->AddRectFilled(P(-118, -86), P(-72, -74), shade, 4 * s);  // L1 / R1 peek out above the body
+    dl->AddRectFilled(P(72, -86), P(118, -74), shade, 4 * s);
+    outline(4, 8);
+    dl->PathFillConcave(IM_COL32(30, 0, 60, 90));  // soft shadow
+    outline(0, 0);
+    dl->PathFillConcave(body);
+    dl->AddRectFilled(P(-46, -76), P(46, -22), IM_COL32(238, 238, 244, 255), 10 * s);  // touchpad
+    dl->AddRect(P(-46, -76), P(46, -22), shade, 10 * s, 0, 1.5f);
+    dl->AddLine(P(-50, -70), P(-56, -26), IM_COL32(70, 120, 255, 255), 2.5f * s);  // light bars
+    dl->AddLine(P(50, -70), P(56, -26), IM_COL32(70, 120, 255, 255), 2.5f * s);
+    dl->AddRectFilled(P(-62, -10), P(62, 40), black, 26 * s);  // black centre with the sticks
+    for (float x : {-36.0f, 36.0f}) {
+        dl->AddCircleFilled(P(x, 14), 17 * s, IM_COL32(16, 14, 22, 255), 32);
+        dl->AddCircle(P(x, 14), 12 * s, IM_COL32(64, 62, 76, 255), 32, 2 * s);
+    }
+    dl->AddCircleFilled(P(0, 30), 4 * s, IM_COL32(96, 94, 108, 255), 16);  // PS button
+    dl->AddRectFilled(P(-60, -74), P(-55, -62), shade, 2 * s);             // Create / Options
+    dl->AddRectFilled(P(55, -74), P(60, -62), shade, 2 * s);
+    const ImVec2 arms[4][2] = {{{-97, -57}, {-87, -45}}, {{-97, -31}, {-87, -19}}, {{-111, -43}, {-99, -33}},
+                               {{-85, -43}, {-73, -33}}};
+    for (const auto& arm : arms) dl->AddRect(P(arm[0].x, arm[0].y), P(arm[1].x, arm[1].y), shade, 2 * s, 0, 1.5f);
+    for (const ImVec2 b : {ImVec2(92, -52), ImVec2(92, -24), ImVec2(78, -38), ImVec2(106, -38)})
+        dl->AddCircle(P(b.x, b.y), 7.5f * s, shade, 20, 1.5f);
+}
+
+void startBinding(App& app, Action a, int slot) {
+    if (app.input->captured()) return;
+    app.bindWaiting = true;
+    app.bindAction = a;
+    app.bindSlot = slot;
+    app.bindSinceTick = GetTickCount64();
+    app.bindNote.clear();
+}
+
+// Our key(s) for one button: left click sets the first key, right click the second.
+void keyChip(App& app, Action a, float width) {
+    const auto& slots = app.profile.layout(kSchemes[app.keysSection].edit).bindings.slots[static_cast<size_t>(a)];
+    const bool waiting = app.bindWaiting && app.bindAction == a;
+    std::string text = waiting ? "нажмите…" : slots[0] ? inputCodeName(slots[0]) : "—";
+    if (!waiting && slots[1]) text += " · " + inputCodeName(slots[1]);
+    text += "##k" + std::to_string(static_cast<int>(a));
+    if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
+    ImGui::Button(text.c_str(), ImVec2(width, 0));
+    if (waiting) ImGui::PopStyleColor();
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) startBinding(app, a, 0);
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) startBinding(app, a, 1);
+    ImGui::SetItemTooltip("ЛКМ — клавиша, ПКМ — вторая клавиша");
+}
+
+void mouseChip(const char* text, float width) {
+    ImGui::BeginDisabled();
+    ImGui::Button(text, ImVec2(width, 0));
+    ImGui::EndDisabled();
+}
+
+void rowKeys(App& app, Action a, float width) {
+    const MouseTarget mouse = app.profile.layout(kSchemes[app.keysSection].edit).mouseTarget;
+    if (a == kRightStick) return mouseChip(mouse == MouseTarget::RightStick ? "Мышь##rs" : "—##rs", width);
+    if (a != kLeftStick) return keyChip(app, a, width);
+    if (mouse == MouseTarget::LeftStick) return mouseChip("Мышь##ls", width);
+    // Movement: four small chips, up / left / down / right (W A S D).
+    const float gap = 4, w = (width - gap * 3) / 4;
+    const auto& b = app.profile.layout(kSchemes[app.keysSection].edit).bindings;
+    const Action dirs[] = {Action::MoveUp, Action::MoveLeft, Action::MoveDown, Action::MoveRight};
+    for (int i = 0; i < 4; ++i) {
+        if (i) ImGui::SameLine(0, gap);
+        const Action d = dirs[i];
+        const InputCode k = b.slots[static_cast<size_t>(d)][0];
+        const bool waiting = app.bindWaiting && app.bindAction == d;
+        const std::string text =
+            (waiting ? std::string("…") : k ? inputCodeName(k) : std::string("—")) + "##m" + std::to_string(i);
+        if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
+        if (ImGui::Button(text.c_str(), ImVec2(w, 0))) startBinding(app, d, 0);
+        if (waiting) ImGui::PopStyleColor();
+        ImGui::SetItemTooltip("%s", i == 0 ? "вперёд" : i == 1 ? "влево" : i == 2 ? "назад" : "вправо");
+    }
+}
+
+// One label: on the left side right-aligned towards the controller, on the right side mirrored;
+// our keys sit on the outer edge.
+void schemeRow(App& app, Action a, const char* text, bool leftSide) {
+    const Fonts& f = app.fonts;
+    const float w = ImGui::GetContentRegionAvail().x, h = 36, chipW = 128, glyphGap = 18;
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const float gx = leftSide ? p.x + w - 14 : p.x + 14;
+    padGlyph(dl, ImVec2(gx, p.y + h * 0.5f), a, f);
+
+    const float room = w - chipW - 28 - glyphGap - 12;
+    ImFont* font = f.semibold;
+    ImGui::PushFont(font);
+    if (ImGui::CalcTextSize(text).x > room) {
+        ImGui::PopFont();
+        font = f.tiny;
+        ImGui::PushFont(font);
+    }
+    const ImVec2 ts = ImGui::CalcTextSize(text);
+    const float tx = leftSide ? gx - glyphGap - std::min(ts.x, room) : gx + glyphGap;
+    const ImVec4 clip(leftSide ? p.x + chipW + 8 : p.x, p.y, leftSide ? p.x + w : p.x + w - chipW - 8, p.y + h);
+    dl->AddText(font, ImGui::GetFontSize(), ImVec2(tx, p.y + (h - ts.y) * 0.5f), col::Text, text, nullptr, 0, &clip);
+    ImGui::PopFont();
+
+    const float frameH = ImGui::GetFrameHeight();
+    ImGui::SetCursorScreenPos(ImVec2(leftSide ? p.x : p.x + w - chipW, p.y + (h - frameH) * 0.5f));
+    ImGui::PushID(leftSide ? 1 : 2);
+    rowKeys(app, a, chipW);
+    ImGui::PopID();
+    ImGui::SetCursorScreenPos(p);
+    ImGui::Dummy(ImVec2(w, h));
+}
+
+// "Пешком" -> "ПЕШКОМ" (UTF-8 Cyrillic and Latin).
+std::string upper(const char* s) {
+    std::string out(s);
+    auto* b = reinterpret_cast<unsigned char*>(out.data());
+    for (size_t i = 0; i < out.size(); ++i) {
+        if (b[i] >= 'a' && b[i] <= 'z') {
+            b[i] = static_cast<unsigned char>(b[i] - 'a' + 'A');
+        } else if (i + 1 < out.size() && b[i] == 0xD0 && b[i + 1] >= 0xB0 && b[i + 1] <= 0xBF) {  // а..п
+            b[++i] -= 0x20;
+        } else if (i + 1 < out.size() && b[i] == 0xD1 && b[i + 1] >= 0x80 && b[i + 1] <= 0x8F) {  // р..я
+            b[i] = 0xD0;
+            b[++i] += 0x20;
+        } else if (i + 1 < out.size() && b[i] == 0xD1 && b[i + 1] == 0x91) {  // ё
+            b[i] = 0xD0;
+            b[++i] = 0x81;
+        }
+    }
+    return out;
+}
+
+void drawSchemeList(App& app) {
+    const Fonts& f = app.fonts;
+    ImGui::PushFont(f.title);
+    ImGui::TextUnformatted("ПРЕДПРОСМОТР");
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 2));
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (int i = 0; i < kSchemeCount; ++i) {
+        const bool on = app.keysSection == i;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const ImVec2 size(ImGui::GetContentRegionAvail().x, 40);
+        const ImVec2 end(p.x + size.x, p.y + size.y);
+        ImGui::PushID(i);
+        if (ImGui::InvisibleButton("##mode", size) && !on) {
+            app.bindWaiting = false;
+            app.keysSection = i;
+        }
+        const bool hover = ImGui::IsItemHovered();
+        ImGui::PopID();
+        if (on) {  // the game's selection: a white bar fading to pink, pink dot
+            dl->AddRectFilledMultiColor(p, end, IM_COL32(255, 255, 255, 240), IM_COL32(246, 206, 240, 220),
+                                        IM_COL32(246, 206, 240, 220), IM_COL32(255, 255, 255, 240));
+        } else {
+            if (hover) dl->AddRectFilled(p, end, IM_COL32(255, 255, 255, 22));
+            dl->AddLine(ImVec2(p.x, end.y), end, col::Line);
+        }
+        ImGui::PushFont(on ? f.semibold : f.body);
+        dl->AddText(ImVec2(p.x + 14, p.y + (size.y - ImGui::GetTextLineHeight()) * 0.5f), on ? kGlyphDark : col::Text,
+                    kSchemes[i].title);
+        ImGui::PopFont();
+        const ImVec2 dot(end.x - 20, p.y + size.y * 0.5f);
+        dl->AddCircle(dot, 9, on ? withAlpha(kGlyphDark, 120) : withAlpha(col::Text, 150), 20, 1.5f);
+        if (on) dl->AddCircleFilled(dot, 6, col::Accent, 20);
+    }
+    ImGui::Dummy(ImVec2(0, 4));
+    char counter[16];
+    std::snprintf(counter, sizeof(counter), "%d / %d", app.keysSection + 1, kSchemeCount);
+    ImGui::PushFont(f.semibold);
+    ImGui::TextUnformatted(counter);
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 6));
+
+    const Scheme& s = kSchemes[app.keysSection];
+    for (int j = 0; j < app.keysSection; ++j)
+        if (kSchemes[j].edit == s.edit) {
+            const std::string shared = std::string("Клавиши общие с «") + kSchemes[j].title +
+                                       "»: в игре это один набор кнопок, меняются только действия.";
+            mutedText(shared.c_str(), f);
+            ImGui::Dummy(ImVec2(0, 2));
+            break;
+        }
+    mutedText("ЛКМ по клавише — назначить, ПКМ — вторая клавиша. Esc — отмена, Backspace — очистить. "
+              "Сохраняется сразу.",
+              f);
+    ImGui::Dummy(ImVec2(0, 4));
+    if (ghostButton("По умолчанию", -FLT_MIN)) {
+        const Profile def = defaultGtaProfile();
+        app.profile.layout(s.edit).bindings = def.layout(s.edit).bindings;
+        app.profile.layout(s.also).bindings = def.layout(s.also).bindings;
+        app.bindWaiting = false;
+        app.input->setProfile(app.profile);
+        saveProfile(app);
+    }
+    noteText(app.bindNote, col::Warn, f);
 }
 
 void drawBindings(App& app) {
     const Fonts& f = app.fonts;
-    beginCard("##keys_edit", icon::Keyboard, "Раскладка клавиш", f);
-    mutedText("Кликните по клавише и нажмите новую: клавиатура, кнопка или колёсико мыши. "
-              "Esc — отмена, Backspace — очистить. Сохраняется сразу.",
-              f);
-    if (ImGui::BeginTabBar("##keys_classes")) {
-        for (size_t i = 0; i < kControlClassCount; ++i) {
-            const auto c = static_cast<ControlClass>(i);
-            const std::string title = std::string(controlClassTitleRu(c)) + "##k";
-            if (ImGui::BeginTabItem(title.c_str())) {
-                if (app.keysClass != c) app.bindWaiting = false;
-                app.keysClass = c;
-                ImGui::EndTabItem();
-            }
-        }
-        ImGui::EndTabBar();
-    }
-    const Layout& layout = app.profile.layout(app.keysClass);
-    ImGui::BeginChild("##keys_list", ImVec2(0, 560), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
-    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(14, 4));
-    if (ImGui::BeginTable("##keys_table", 4,
-                          ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_PadOuterX)) {
-        ImGui::TableSetupColumn("Действие", ImGuiTableColumnFlags_WidthStretch, 2.2f);
-        ImGui::TableSetupColumn("Кнопка", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Клавиша", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Ещё", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        for (size_t i = 0; i < kActionCount; ++i) {
-            const auto a = static_cast<Action>(i);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(capitalized(actionMeaningRu(app.keysClass, a)).c_str());
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
-            ImGui::TextUnformatted(padButtonRu(a));
-            ImGui::PopStyleColor();
-            for (int s = 0; s < 2; ++s) {
-                ImGui::TableNextColumn();
-                const InputCode code = layout.bindings.slots[i][s];
-                const bool waiting = app.bindWaiting && app.bindAction == a && app.bindSlot == s;
-                std::string label = waiting ? "нажмите…" : code ? inputCodeName(code) : "—";
-                label += "##b" + std::to_string(i * 2 + s);
-                if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
-                if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)) && !app.input->captured()) {
-                    app.bindWaiting = true;
-                    app.bindAction = a;
-                    app.bindSlot = s;
-                    app.bindSinceTick = GetTickCount64();
-                    app.bindNote.clear();
-                }
-                if (waiting) ImGui::PopStyleColor();
-            }
-        }
+    ImGui::BeginChild("##modes", ImVec2(250, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    drawSchemeList(app);
+    ImGui::EndChild();
+    ImGui::SameLine(0, 22);
+    ImGui::BeginChild("##scheme", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    const Scheme& s = kSchemes[app.keysSection];
+    const float w = ImGui::GetContentRegionAvail().x;
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+
+    // Heading with the thin pink line down to the controller, then the controller.
+    const std::string heading = upper(s.title);
+    ImGui::PushFont(f.title);
+    const ImVec2 hs = ImGui::CalcTextSize(heading.c_str());
+    dl->AddText(ImVec2(p.x + (w - hs.x) * 0.5f, p.y), col::Text, heading.c_str());
+    ImGui::PopFont();
+    const float scale = std::clamp(w / 760.0f, 0.7f, 1.0f);
+    const float lineTop = p.y + hs.y + 6, padTop = lineTop + 26;
+    dl->AddLine(ImVec2(p.x + w * 0.5f, lineTop), ImVec2(p.x + w * 0.5f, padTop + 4), col::Accent, 1.5f);
+    drawDualSense(dl, ImVec2(p.x + w * 0.5f, padTop + 86 * scale), scale);
+    ImGui::Dummy(ImVec2(w, padTop - p.y + 200 * scale + 10));
+
+    if (ImGui::BeginTable("##scheme_rows", 2, ImGuiTableFlags_SizingStretchSame)) {
+        ImGui::TableNextColumn();
+        for (const SchemeRow& r : s.left)
+            if (r.text) schemeRow(app, r.a, r.text, true);
+        if (s.extra != Action::Count) schemeRow(app, s.extra, s.extraText, true);
+        ImGui::TableNextColumn();
+        for (const SchemeRow& r : s.right)
+            if (r.text) schemeRow(app, r.a, r.text, false);
         ImGui::EndTable();
     }
-    ImGui::PopStyleVar();
     ImGui::EndChild();
-    noteText(app.bindNote, col::Warn, f);
-    endCard();
 }
 
 std::filesystem::path newRecordingDir() {
@@ -813,7 +1056,7 @@ std::filesystem::path newRecordingDir() {
     GetLocalTime(&t);
     wchar_t name[64];
     swprintf_s(name, L"rec-%04u%02u%02u-%02u%02u%02u", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
-    return base / L"RplayPS" / name;
+    return base / L"RPlayKM" / name;
 }
 
 void drawRecord(App& app) {
@@ -896,25 +1139,15 @@ void startCapture(App& app) {
 
 void drawUi(App& app) {
     const ImGuiViewport* vp = ImGui::GetMainViewport();
+    drawBackdrop(ImGui::GetBackgroundDrawList(), vp->Pos, vp->Size);
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24, 20));
-    ImGui::Begin("RplayPS", nullptr,
+    ImGui::Begin("RPlay K&M", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar();
-
-    // Thin sunset line across the top: the one GTA 6 touch.
-    {
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        const ImVec2 p = ImGui::GetWindowPos();
-        const float w = ImGui::GetWindowWidth();
-        dl->AddRectFilledMultiColor(p, ImVec2(p.x + w * 0.5f, p.y + 3), col::Accent, col::Accent2, col::Accent2,
-                                    col::Accent);
-        dl->AddRectFilledMultiColor(ImVec2(p.x + w * 0.5f, p.y), ImVec2(p.x + w, p.y + 3), col::Accent2,
-                                    withAlpha(col::Accent2, 0), withAlpha(col::Accent2, 0), col::Accent2);
-    }
 
     drawHeader(app);
     drawCaptureBanner(app);
@@ -959,9 +1192,13 @@ void finishBinding(App& app, std::optional<InputCode> code, bool clear) {
         app.bindNote = "Эту клавишу пока нельзя назначить.";
         return;
     }
-    auto& slot = app.profile.layout(app.keysClass).bindings.slots[static_cast<size_t>(app.bindAction)];
-    slot[app.bindSlot] = clear ? code::None : *code;
-    if (slot[0] == code::None && slot[1] != code::None) std::swap(slot[0], slot[1]);
+    const Scheme& s = kSchemes[app.keysSection];
+    for (const ControlClass c : {s.edit, s.also}) {  // e.g. ground and water share one game screen
+        auto& slot = app.profile.layout(c).bindings.slots[static_cast<size_t>(app.bindAction)];
+        slot[app.bindSlot] = clear ? code::None : *code;
+        if (slot[0] == code::None && slot[1] != code::None) std::swap(slot[0], slot[1]);
+        if (s.also == s.edit) break;
+    }
     app.input->setProfile(app.profile);
     saveProfile(app);
 }

@@ -38,6 +38,8 @@ TEST_CASE("default_profile_has_a_layout_per_class") {
     CHECK(slot(p, ControlClass::Heli, Action::Square) == 'A');
     CHECK(L(p, ControlClass::Plane).mouseTarget == MouseTarget::LeftStick);
     CHECK(slot(p, ControlClass::Plane, Action::Circle) == 'D');
+    CHECK(slot(p, ControlClass::Heli, Action::L3) == 'G');  // the game's one air scheme: L3 = landing gear
+    CHECK(slot(p, ControlClass::Plane, Action::L3) == 'G');
 }
 
 TEST_CASE("class_names_roundtrip") {

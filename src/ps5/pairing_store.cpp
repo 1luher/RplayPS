@@ -78,7 +78,7 @@ bool savePairing(const Pairing& p, const std::filesystem::path& file) {
     auto plain = serializePairing(p);
     DATA_BLOB in{static_cast<DWORD>(plain.size()), plain.data()};
     DATA_BLOB out{};
-    const BOOL ok = CryptProtectData(&in, L"RplayPS pairing", nullptr, nullptr, nullptr,
+    const BOOL ok = CryptProtectData(&in, L"RPlay K&M pairing", nullptr, nullptr, nullptr,
                                      CRYPTPROTECT_UI_FORBIDDEN, &out);
     SecureZeroMemory(plain.data(), plain.size());
     if (!ok) return false;
@@ -110,7 +110,7 @@ std::filesystem::path appDataDir() {
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &roaming))) dir = roaming;
     CoTaskMemFree(roaming);
     if (dir.empty()) dir = std::filesystem::temp_directory_path();
-    dir /= L"RplayPS";
+    dir /= L"RPlayKM";
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     return dir;

@@ -51,7 +51,7 @@ std::string quitText(ChiakiQuitReason reason, const std::string& remote) {
             text = "Прошивка PS5 использует версию протокола, которую встроенное ядро chiaki-ng не знает. Нужно обновить ядро.";
             break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_UNKNOWN:
-            text = "PS5 отклонила сеанс. Если вы заново привязывали устройства на PS5, привяжите RplayPS ещё раз.";
+            text = "PS5 отклонила сеанс. Если вы заново привязывали устройства на PS5, привяжите RPlay K&M ещё раз.";
             break;
         case CHIAKI_QUIT_REASON_CTRL_CONNECT_FAILED:
         case CHIAKI_QUIT_REASON_CTRL_CONNECTION_REFUSED:

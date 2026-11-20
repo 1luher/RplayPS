@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-only
 cmake_minimum_required(VERSION 3.24)
-project(RplayPS LANGUAGES C CXX)
+project(RPlayKM LANGUAGES C CXX)
 
 if(NOT WIN32 OR NOT MSVC)
-  message(FATAL_ERROR "RplayPS builds only on Windows with MSVC")
+  message(FATAL_ERROR "RPlay K&M builds only on Windows with MSVC")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -50,10 +50,10 @@ target_include_directories(tp_imgui PUBLIC "${IMGUI_DIR}")
 target_link_libraries(tp_imgui PUBLIC d3d11 dxgi d3dcompiler dwmapi)
 target_compile_options(tp_imgui PRIVATE /W0 /utf-8 /MP)
 
-add_executable(rplayps WIN32 "${CMAKE_SOURCE_DIR}/src/app/main.cpp" "${CMAKE_SOURCE_DIR}/src/app/ui.cpp"
+add_executable(rplaykm WIN32 "${CMAKE_SOURCE_DIR}/src/app/main.cpp" "${CMAKE_SOURCE_DIR}/src/app/ui.cpp"
   "${CMAKE_SOURCE_DIR}/src/app/theme.cpp")
-target_link_libraries(rplayps PRIVATE rplay_ps5 rplay_win tp_imgui)
-target_compile_options(rplayps PRIVATE ${RPLAY_OPTS})
+target_link_libraries(rplaykm PRIVATE rplay_ps5 rplay_win tp_imgui)
+target_compile_options(rplaykm PRIVATE ${RPLAY_OPTS})
 
 # ---------------------------------------------------------------- tests
 enable_testing()

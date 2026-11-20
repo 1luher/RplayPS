@@ -1,10 +1,10 @@
-# third_party (RplayPS)
+# third_party (RPlay K&M)
 
 The Remote Play backend below (chiaki, mbedtls, nanopb, jerasure, gf-complete, shims, patches)
 is copied unchanged from PS5-DirectView (https://github.com/babymonie/PS5-DirectView),
 commit c109fec, AGPL-3.0; only CHIAKI_VERSION in CMakeLists.txt was renamed. Its README follows.
 
-Added for RplayPS (copied unmodified, nothing is downloaded at build time):
+Added for RPlay K&M (copied unmodified, nothing is downloaded at build time):
 
 | Directory | Upstream | Version | Licence | SHA-256 of main file |
 |---|---|---|---|---|

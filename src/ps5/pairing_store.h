@@ -25,5 +25,5 @@ std::optional<Pairing> deserializePairing(std::span<const std::uint8_t> bytes);
 bool savePairing(const Pairing& p, const std::filesystem::path& file);
 std::optional<Pairing> loadPairing(const std::filesystem::path& file);  // nullopt if missing or damaged
 
-// %APPDATA%\RplayPS (created if missing).
+// %APPDATA%\RPlayKM (created if missing).
 std::filesystem::path appDataDir();

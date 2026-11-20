@@ -5,7 +5,7 @@
 #include <avrt.h>
 
 namespace {
-constexpr wchar_t kWindowClass[] = L"RplayPSInputSink";
+constexpr wchar_t kWindowClass[] = L"RPlayKMInputSink";
 constexpr UINT kMsgCapture = WM_APP + 1;
 constexpr UINT kMsgProfile = WM_APP + 2;
 constexpr UINT kMsgQuit = WM_APP + 3;

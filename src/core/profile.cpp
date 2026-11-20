@@ -86,7 +86,7 @@ Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     bind(l, Action::R1, code::MouseLeft);      // drive-by shoot
     bind(l, Action::L1, code::MouseRight, vk::Tab);  // draw weapon (hold: vehicle weapons)
     bind(l, Action::R3, code::MouseMiddle, 'C');     // look back (click: shout)
-    bind(l, Action::Square, 'R');              // door kick
+    bind(l, Action::Square, 'R');              // melee
     bind(l, Action::DpadUp, vk::Up);           // phone
     bind(l, Action::DpadDown, vk::Down);       // vehicle info
     bind(l, Action::DpadLeft, vk::Left);       // indicator (hold: vehicle menu)
@@ -96,7 +96,7 @@ Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     return l;
 }
 
-Layout airLayout(bool plane) {  // mouse = pitch/roll
+Layout airLayout() {  // GTA 6 has one "air vehicles" scheme; mouse = pitch/roll
     Layout l;
     l.mouseTarget = MouseTarget::LeftStick;
     bind(l, Action::R2, 'W');                  // climb / throttle up
@@ -105,8 +105,8 @@ Layout airLayout(bool plane) {  // mouse = pitch/roll
     bind(l, Action::Circle, 'D');              // yaw right
     bind(l, Action::R1, code::MouseLeft);      // fire
     bind(l, Action::L1, code::MouseRight, vk::Tab);  // select weapon
-    bind(l, Action::Triangle, 'F');            // exit (plane on water: take off?)
-    if (plane) bind(l, Action::L3, 'G');       // landing gear
+    bind(l, Action::Triangle, 'F');            // exit (plane on water: take off)
+    bind(l, Action::L3, 'G');                  // landing gear
     bind(l, Action::R3, code::MouseMiddle, 'C');
     bind(l, Action::DpadUp, vk::Up);
     bind(l, Action::DpadDown, vk::Down);
@@ -231,8 +231,8 @@ Profile defaultGtaProfile() {
     p.layout(ControlClass::Foot) = footLayout();
     p.layout(ControlClass::Ground) = groundLayout();
     p.layout(ControlClass::Water) = groundLayout();
-    p.layout(ControlClass::Heli) = airLayout(false);
-    p.layout(ControlClass::Plane) = airLayout(true);
+    p.layout(ControlClass::Heli) = airLayout();
+    p.layout(ControlClass::Plane) = airLayout();
     return p;
 }
 

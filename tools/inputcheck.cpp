@@ -49,7 +49,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
     wc.hInstance = inst;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
     wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-    wc.lpszClassName = L"RplayPSInputCheck";
+    wc.lpszClassName = L"RPlayKMInputCheck";
     RegisterClassExW(&wc);
     HWND hwnd = CreateWindowExW(0, wc.lpszClassName, L"inputcheck", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
                                 1100, 200, nullptr, nullptr, inst, nullptr);
