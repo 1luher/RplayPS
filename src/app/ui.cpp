@@ -717,12 +717,15 @@ const char* actionMeaningRu(ControlClass c, Action a) {
         case Action::R2: return air ? (c == ControlClass::Plane ? "газ" : "вверх") : vehicle ? "газ" : "огонь";
         case Action::L2: return air ? (c == ControlClass::Plane ? "сброс газа" : "вниз") : vehicle ? "тормоз / назад" : "прицел, говорить";
         case Action::Cross: return air ? "—" : vehicle ? "ручной тормоз" : "прыжок, лазание, уклон";
-        case Action::Circle: return air ? "поворот вправо" : vehicle ? "пригнуться" : "присесть (держать — отдых)";
+        case Action::Circle: return air ? "поворот вправо" : vehicle ? "фары (держать — пригнуться)" : "присесть (держать — отдых)";
         case Action::Square: return air ? "поворот влево" : vehicle ? "пинок дверью" : "ближний бой";
-        case Action::Triangle: return vehicle || air ? "выйти (держать — остановиться и выйти)" : "взаимодействие, сесть";
+        case Action::Triangle:
+            return c == ControlClass::Plane ? "выйти; на воде — взлёт"
+                   : vehicle || air       ? "выйти (держать — остановиться и выйти)"
+                                          : "взаимодействие, сесть";
         case Action::R1: return vehicle || air ? "стрельба" : "укрытие (держать — бросок)";
         case Action::L1: return vehicle || air ? "оружие" : "убрать оружие (держать — колесо)";
-        case Action::L3: return c == ControlClass::Plane ? "шасси" : vehicle ? "гудок / нитро" : air ? "—" : "бег (ещё раз — спринт)";
+        case Action::L3: return c == ControlClass::Plane ? "шасси" : vehicle ? "гудок / нитро / сирена" : air ? "—" : "бег (ещё раз — спринт)";
         case Action::R3: return "оглянуться назад";
         case Action::DpadUp: return "телефон (держать — WAiNK)";
         case Action::DpadDown: return vehicle ? "инфо о машине" : "HUD (держать — навигация)";

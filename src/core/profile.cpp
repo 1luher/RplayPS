@@ -82,7 +82,7 @@ Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     bind(l, Action::Cross, vk::Space);         // handbrake
     bind(l, Action::Triangle, 'F');            // exit (hold: stop & exit, double: bail)
     bind(l, Action::L3, vk::LShift, 'H');      // horn / nitrous / siren
-    bind(l, Action::Circle, vk::LCtrl);        // duck (tap: lights?)
+    bind(l, Action::Circle, 'L', vk::LCtrl);   // lights (tap), duck (hold) — confirmed in GTA 6
     bind(l, Action::R1, code::MouseLeft);      // drive-by shoot
     bind(l, Action::L1, code::MouseRight, vk::Tab);  // draw weapon (hold: vehicle weapons)
     bind(l, Action::R3, code::MouseMiddle, 'C');     // look back (click: shout)

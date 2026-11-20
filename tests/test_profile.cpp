@@ -28,7 +28,9 @@ TEST_CASE("default_profile_has_a_layout_per_class") {
     CHECK(slot(p, ControlClass::Ground, Action::R2) == 'W');
     CHECK(slot(p, ControlClass::Ground, Action::L2) == 'S');
     CHECK(slot(p, ControlClass::Ground, Action::MoveLeft) == 'A');
-    CHECK(slot(p, ControlClass::Ground, Action::Cross) == vk::Space);
+    CHECK(slot(p, ControlClass::Ground, Action::Cross) == vk::Space);        // handbrake (confirmed)
+    CHECK(slot(p, ControlClass::Ground, Action::Circle) == 'L');            // lights: tap circle (confirmed)
+    CHECK(slot(p, ControlClass::Ground, Action::Circle, 1) == vk::LCtrl);   // hold circle: duck
     CHECK(slot(p, ControlClass::Water, Action::R2) == 'W');
 
     CHECK(L(p, ControlClass::Heli).mouseTarget == MouseTarget::LeftStick);
