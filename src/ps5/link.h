@@ -12,6 +12,7 @@
 
 #include "core/account_id.h"
 #include "core/pad.h"
+#include "core/quality.h"
 #include "ps5/pairing_store.h"
 
 extern "C" {
@@ -56,6 +57,9 @@ public:
     };
     void setFeedback(Feedback fb);
     void requestKeyframe();  // asks the PS5 for a fresh IDR frame (e.g. when a recording starts)
+
+    // Network quality while connected: ping/jitter from the liveness probes (every 2 s), video loss.
+    NetQuality quality() const;
     LinkState state() const;
     std::optional<Pairing> currentPairing() const;  // host may have been updated by DHCP
 

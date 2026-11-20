@@ -546,6 +546,47 @@ void drawLive(App& app) {
     endCard();
 }
 
+void drawNetwork(App& app) {
+    const Fonts& f = app.fonts;
+    beginCard("##net", icon::Pulse, "Сеть до PS5", f);
+    const NetQuality q = app.link->quality();
+    const bool connected = app.link->state() == LinkState::Connected;
+    if (!connected || q.grade == NetGrade::Unknown) {
+        mutedText(connected ? "Измеряю… первые цифры появятся через пару секунд."
+                            : "Появится после подключения к PS5: пинг, джиттер и потери, раз в 2 секунды.",
+                  f);
+        endCard();
+        return;
+    }
+    struct Look {
+        const char* text;
+        ImU32 color;
+        const char* advice;
+    };
+    const Look look = q.grade == NetGrade::Excellent ? Look{"Отлично", col::Good, "Сеть не мешает."}
+                    : q.grade == NetGrade::Good      ? Look{"Хорошо", col::Good, "Задержка почти незаметна."}
+                    : q.grade == NetGrade::Fair
+                        ? Look{"Терпимо", col::Warn,
+                               "Управление может временами «вязнуть». Wi-Fi 5 ГГц, роутер ближе или кабель помогут."}
+                        : Look{"Плохо", col::Bad,
+                               "Заметные рывки и задержки. Подключите PS5 кабелем или к Wi-Fi 5 ГГц рядом с роутером."};
+    pill(look.text, look.color, f.semibold);
+    ImGui::Dummy(ImVec2(0, 2));
+    const float tileW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
+    char a[32], b[32], c[32];
+    std::snprintf(a, sizeof(a), "%.0f", q.pingMs);
+    std::snprintf(b, sizeof(b), "%.0f", q.jitterMs);
+    std::snprintf(c, sizeof(c), "%.1f", std::max(q.probeLossPct, q.frameLossPct));
+    statTile("Пинг", a, "мс", tileW, f);
+    ImGui::SameLine();
+    statTile("Джиттер", b, "мс", tileW, f);
+    ImGui::SameLine();
+    statTile("Потери", c, "%", tileW, f);
+    mutedText(look.advice, f);
+    mutedText("Это задержка сети между ПК и PS5, без учёта игры и монитора.", f);
+    endCard();
+}
+
 void drawSidebar(App& app) {
     const Fonts& f = app.fonts;
     struct Item {
@@ -887,6 +928,10 @@ void drawUi(App& app) {
                 drawFirstSteps(app);
                 ImGui::TableNextColumn();
                 drawLive(app);
+                if (!app.consoleOnly) {
+                    ImGui::Dummy(ImVec2(0, 2));
+                    drawNetwork(app);
+                }
                 ImGui::EndTable();
             }
             break;

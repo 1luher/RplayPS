@@ -3,6 +3,7 @@
 // (src/RemotePlayClient.cpp: discovery, pairing, wake-up and input-only session).
 #include "ps5/link.h"
 #include "ps5/liveness.h"
+#include "core/quality.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -147,6 +148,8 @@ ChiakiControllerState padToChiaki(const PadState& pad) {
 struct Ps5Link::Impl {
     StateFn onState;
     Feedback feedback;  // set before connect()
+    mutable std::mutex qualityMutex;
+    QualityMeter quality;  // ping / jitter / loss while connected
     ChiakiLog log{};
     bool libReady = false;
 
@@ -179,11 +182,17 @@ struct Ps5Link::Impl {
         std::mutex m;
         std::vector<FoundConsole> found;
         std::vector<bool> ps5;
+        bool replied = false;
+        std::chrono::steady_clock::time_point firstReply;
     };
 
     static void discoveryCb(ChiakiDiscoveryHost* hosts, size_t count, void* user) {
         auto* ctx = static_cast<ProbeCtx*>(user);
         std::lock_guard lock(ctx->m);
+        if (count > 0 && !ctx->replied) {
+            ctx->replied = true;
+            ctx->firstReply = std::chrono::steady_clock::now();
+        }
         ctx->found.clear();
         ctx->ps5.clear();
         for (size_t i = 0; i < count; ++i) {
@@ -202,7 +211,7 @@ struct Ps5Link::Impl {
     // until done() says so, the timeout passes, or (forConnect) the user cancels.
     std::vector<FoundConsole> probe(const std::string& host, int timeoutMs,
                                     const std::function<bool(const std::vector<FoundConsole>&)>& done,
-                                    bool forConnect) {
+                                    bool forConnect, double* rttMs = nullptr) {
         ProbeCtx ctx;
         sockaddr_storage send{};
         auto* in = reinterpret_cast<sockaddr_in*>(&send);
@@ -228,6 +237,7 @@ struct Ps5Link::Impl {
         }
         ChiakiDiscoveryService service;
         if (chiaki_discovery_service_init(&service, &options, &log) != CHIAKI_ERR_SUCCESS) return {};
+        const auto sent = std::chrono::steady_clock::now();  // first ping goes out at once (ping_initial_ms = 0)
         auto ps5Only = [&] {
             std::vector<FoundConsole> out;
             std::lock_guard lock(ctx.m);
@@ -245,6 +255,10 @@ struct Ps5Link::Impl {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
         chiaki_discovery_service_fini(&service);
+        if (rttMs) {
+            std::lock_guard lock(ctx.m);
+            if (ctx.replied) *rttMs = std::chrono::duration<double, std::milli>(ctx.firstReply - sent).count();
+        }
         return ps5Only();
     }
 
@@ -263,7 +277,12 @@ struct Ps5Link::Impl {
     }
 
     // ------------------------------------------------------------- session
-    static bool videoCb(uint8_t* buf, size_t size, int32_t, bool, void* user) {
+    static bool videoCb(uint8_t* buf, size_t size, int32_t framesLost, bool, void* user) {
+        auto* q = static_cast<Impl*>(user);
+        {
+            std::lock_guard qlock(q->qualityMutex);
+            q->quality.addFrames(1, framesLost > 0 ? static_cast<std::uint64_t>(framesLost) : 0);
+        }
         auto* self = static_cast<Impl*>(user);
         if (self->feedback.onVideo) self->feedback.onVideo(buf, size);
         return true;
@@ -363,6 +382,8 @@ struct Ps5Link::Impl {
         {
             std::lock_guard lock(m);
             evConnected = evQuit = evLoginPin = false;
+            std::lock_guard qlock(qualityMutex);
+            quality.reset();
             quitReason = CHIAKI_QUIT_REASON_NONE;
             quitRemote.clear();
         }
@@ -401,7 +422,12 @@ struct Ps5Link::Impl {
                                     [&] { return stopping || evQuit || evLoginPin || !wantConnected; }))
                         break;
                 }
-                const auto seen = probe(p.host, 1000, [](const std::vector<FoundConsole>& v) { return !v.empty(); }, true);
+                double pingMs = -1;
+                const auto seen = probe(p.host, 1000, [](const std::vector<FoundConsole>& v) { return !v.empty(); }, true, &pingMs);
+                {
+                    std::lock_guard qlock(qualityMutex);
+                    if (seen.empty() || pingMs < 0) quality.addMiss(); else quality.addPing(pingMs);
+                }
                 if (seen.empty())
                     live.missed();
                 else
@@ -596,4 +622,9 @@ void Ps5Link::setFeedback(Feedback fb) { impl_->feedback = std::move(fb); }
 void Ps5Link::requestKeyframe() {
     std::lock_guard lock(impl_->padMutex);
     if (impl_->activeSession) chiaki_session_request_idr(impl_->activeSession);
+}
+
+NetQuality Ps5Link::quality() const {
+    std::lock_guard lock(impl_->qualityMutex);
+    return impl_->quality.snapshot();
 }
