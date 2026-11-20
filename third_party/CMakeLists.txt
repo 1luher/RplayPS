@@ -4,7 +4,7 @@
 # Remote Play pieces (holepunch / PSN certificate fetch), which are the only
 # parts that need curl, json-c, libevent and miniupnpc. Those entry points are
 # replaced by stubs in shims/chiaki_lan_stubs.c that report "not supported".
-# No Remote Play video/audio decoding is compiled in (FFmpeg / Opus off).
+# Remote Play audio is decoded with Opus (played on the PC); video is never decoded (FFmpeg off).
 
 set(TP "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -57,6 +57,14 @@ target_link_libraries(tp_jerasure PUBLIC tp_gf_complete)
 target_compile_options(tp_jerasure PRIVATE ${TP_C_OPTIONS})
 target_compile_definitions(tp_jerasure PRIVATE ${TP_C_DEFS})
 
+# ------------------------------------------------------------------ opus (Remote Play audio)
+# libopus 1.4 builds its own static target "opus". It declares CMake 3.1, which CMake 4 rejects
+# without this minimum; tests, programs and install files are off.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+set(OPUS_INSTALL_PKG_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
+set(OPUS_INSTALL_CMAKE_CONFIG_MODULE OFF CACHE BOOL "" FORCE)
+add_subdirectory("${TP}/opus" EXCLUDE_FROM_ALL)
+
 # ------------------------------------------------------------------ chiaki core
 file(GLOB CHIAKI_SOURCES CONFIGURE_DEPENDS "${TP}/chiaki/src/*.c")
 add_library(chiaki_core STATIC
@@ -75,7 +83,7 @@ set_property(TARGET chiaki_core PROPERTY C_STANDARD 11)
 if(WIN32 AND MSVC)
   # /FI malloc.h: _alloca for the three VLA sites patched in patches/chiaki-msvc-no-vla.patch.
   target_compile_options(chiaki_core PRIVATE ${TP_C_OPTIONS} /FImalloc.h)
-  target_link_libraries(chiaki_core PUBLIC tp_mbedtls tp_nanopb tp_jerasure
+  target_link_libraries(chiaki_core PUBLIC tp_mbedtls tp_nanopb tp_jerasure opus
     ws2_32 wsock32 bcrypt iphlpapi)
 elseif(APPLE)
   # Darwin clang: force-include alloca.h and alias MSVC's _alloca to POSIX alloca
@@ -90,7 +98,7 @@ elseif(APPLE)
     _alloca=alloca
     _DARWIN_UNLIMITED_SELECT=1 __APPLE_USE_RFC_3542=1)
   find_library(CHIAKI_FW_CORESERVICES CoreServices REQUIRED)
-  target_link_libraries(chiaki_core PUBLIC tp_mbedtls tp_nanopb tp_jerasure
+  target_link_libraries(chiaki_core PUBLIC tp_mbedtls tp_nanopb tp_jerasure opus
     ${CHIAKI_FW_CORESERVICES})
   # Darwin: no bcrypt/iphlpapi; sockets are in libSystem (no explicit link needed).
 endif()

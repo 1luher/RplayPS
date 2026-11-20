@@ -12,6 +12,7 @@
 #include <backends/imgui_impl_win32.h>
 
 #include "app/ui.h"
+#include "win/audio_out.h"
 #include "win/sound.h"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
@@ -205,6 +206,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     loadProfile(app);
     app.pairing = loadPairing(app.pairingPath);
 
+    AudioOut audio;  // before link: the link calls into it until it is destroyed
     Ps5Link link([hwnd, &app](LinkState s, const std::string& message) {
         {
             std::lock_guard lock(app.statusMutex);
@@ -213,13 +215,16 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         }
         PostMessageW(hwnd, kMsgLinkState, static_cast<WPARAM>(s), 0);
     });
-    // Everything the game sends back goes to the recorder (it ignores it unless recording).
+    // Everything the game sends back goes to the recorder (it ignores it unless recording);
+    // the game sound plays on the PC, because the PS5 mutes its own outputs during Remote Play.
     link.setFeedback({[&app](const std::uint8_t* data, size_t size) {
                           app.recorder.onVideoSample(sessionMs(), {data, size});
                       },
                       [&app](const char* type, const std::string& json) {
                           app.recorder.onEvent(sessionMs(), type, json);
-                      }});
+                      },
+                      [&audio](unsigned channels, unsigned rate) { audio.setFormat(channels, rate); },
+                      [&audio](const std::int16_t* samples, size_t frames) { audio.play(samples, frames); }});
     InputThread input(hwnd, {[&link, &app](const PadState& pad) {
                                  if (!app.consoleOnly) link.submit(pad);
                                  app.recorder.onPad(sessionMs(), pad);

@@ -14,6 +14,7 @@ extern "C" {
 #include <chiaki/discovery.h>
 #include <chiaki/discoveryservice.h>
 #include <chiaki/log.h>
+#include <chiaki/opusdecoder.h>
 #include <chiaki/regist.h>
 #include <chiaki/session.h>
 }
@@ -277,6 +278,16 @@ struct Ps5Link::Impl {
     }
 
     // ------------------------------------------------------------- session
+    static void audioFormatCb(uint32_t channels, uint32_t rate, void* user) {
+        auto* self = static_cast<Impl*>(user);
+        if (self->feedback.onAudioFormat) self->feedback.onAudioFormat(channels, rate);
+    }
+
+    static void audioFrameCb(int16_t* buf, size_t frames, void* user) {
+        auto* self = static_cast<Impl*>(user);
+        if (self->feedback.onAudio) self->feedback.onAudio(buf, frames);
+    }
+
     static bool videoCb(uint8_t* buf, size_t size, int32_t framesLost, bool, void* user) {
         auto* q = static_cast<Impl*>(user);
         {
@@ -368,7 +379,10 @@ struct Ps5Link::Impl {
                                             CHIAKI_VIDEO_FPS_PRESET_30);
         info.video_profile.codec = CHIAKI_CODEC_H264;
         info.video_profile_auto_downgrade = true;
-        info.audio_video_disabled = CHIAKI_AUDIO_DISABLED;  // keep 360p video: recorder / vehicle detector
+        // Keep 360p video (recorder / vehicle detector). While Remote Play runs the PS5 mutes its own
+        // outputs (TV, controller headset), so the sound comes here and is played on the PC.
+        const bool wantAudio = static_cast<bool>(feedback.onAudio);
+        info.audio_video_disabled = wantAudio ? CHIAKI_NONE_DISABLED : CHIAKI_AUDIO_DISABLED;
         info.enable_keyboard = false;
         info.enable_dualsense = true;  // the game then sends adaptive-trigger effects
         info.auto_regist = false;
@@ -377,6 +391,12 @@ struct Ps5Link::Impl {
         info.packet_loss_max = 0.05;
         info.enable_idr_on_fec_failure = false;
 
+        struct OpusGuard {  // outlives the session that feeds it
+            ChiakiOpusDecoder d;
+            ~OpusGuard() { chiaki_opus_decoder_fini(&d); }
+        } opus;
+        chiaki_opus_decoder_init(&opus.d, &log);
+        chiaki_opus_decoder_set_cb(&opus.d, &Impl::audioFormatCb, &Impl::audioFrameCb, this);
         auto session = std::make_unique<ChiakiSession>();
         std::memset(session.get(), 0, sizeof(ChiakiSession));
         {
@@ -392,6 +412,11 @@ struct Ps5Link::Impl {
             return finish(LinkState::Lost, std::string("Ошибка запуска Remote Play: ") + chiaki_error_string(err));
         chiaki_session_set_event_cb(session.get(), &Impl::eventCb, this);
         chiaki_session_set_video_sample_cb(session.get(), &Impl::videoCb, this);
+        if (wantAudio) {
+            ChiakiAudioSink sink;
+            chiaki_opus_decoder_get_sink(&opus.d, &sink);
+            chiaki_session_set_audio_sink(session.get(), &sink);
+        }
         err = chiaki_session_start(session.get());
         if (err != CHIAKI_ERR_SUCCESS) {
             chiaki_session_fini(session.get());

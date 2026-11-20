@@ -11,6 +11,7 @@ Added for RPlay K&M (copied unmodified, nothing is downloaded at build time):
 | `imgui/` | ocornut/imgui (core + win32/dx11 backends) | v1.91.9 | MIT | — |
 | `nlohmann/json.hpp` | nlohmann/json single_include | v3.11.3 | MIT | 9bea4c8066ef4a1c206b2be5a36302f8926f7fdc6087af5d20b417d0cf103ea6 |
 | `doctest/doctest.h` | doctest/doctest | v2.4.11 | MIT | 44faa038e9c3f9728efbda143748d01124ea0a27f4bf78f35a15d8fab2e039fb |
+| `opus/` | xiph/opus release tarball `opus-1.4.tar.gz` (sources, CMake files and licence only; no docs, tests, autotools) | v1.4 | BSD-3-Clause | c9b32b4253be5ae63d1ff16eea06b94b5f0f2951b7a02aceef58e3a3ce49c51f (tarball) |
 
 ---
 

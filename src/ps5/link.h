@@ -54,6 +54,10 @@ public:
     struct Feedback {
         std::function<void(const std::uint8_t* data, size_t size)> onVideo;
         std::function<void(const char* type, const std::string& json)> onEvent;
+        // Game sound, decoded from Opus: 16-bit PCM, interleaved. onAudioFormat comes first and again
+        // whenever the format changes. Leave onAudio empty to drop the sound.
+        std::function<void(unsigned channels, unsigned rate)> onAudioFormat;
+        std::function<void(const std::int16_t* samples, size_t frames)> onAudio;
     };
     void setFeedback(Feedback fb);
     void requestKeyframe();  // asks the PS5 for a fresh IDR frame (e.g. when a recording starts)
