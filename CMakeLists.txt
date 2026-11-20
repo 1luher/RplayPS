@@ -50,7 +50,8 @@ target_include_directories(tp_imgui PUBLIC "${IMGUI_DIR}")
 target_link_libraries(tp_imgui PUBLIC d3d11 dxgi d3dcompiler dwmapi)
 target_compile_options(tp_imgui PRIVATE /W0 /utf-8 /MP)
 
-add_executable(rplayps WIN32 "${CMAKE_SOURCE_DIR}/src/app/main.cpp" "${CMAKE_SOURCE_DIR}/src/app/ui.cpp")
+add_executable(rplayps WIN32 "${CMAKE_SOURCE_DIR}/src/app/main.cpp" "${CMAKE_SOURCE_DIR}/src/app/ui.cpp"
+  "${CMAKE_SOURCE_DIR}/src/app/theme.cpp")
 target_link_libraries(rplayps PRIVATE rplay_ps5 rplay_win tp_imgui)
 target_compile_options(rplayps PRIVATE ${RPLAY_OPTS})
 

@@ -136,8 +136,9 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
                    nullptr, L"RplayPS", nullptr};
     RegisterClassExW(&wc);
     const float dpi = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY));
-    HWND hwnd = CreateWindowW(wc.lpszClassName, L"RplayPS", WS_OVERLAPPEDWINDOW, 100, 100, static_cast<int>(720 * dpi),
-                              static_cast<int>(860 * dpi), nullptr, nullptr, inst, nullptr);
+    HWND hwnd = CreateWindowW(wc.lpszClassName, L"RplayPS", WS_OVERLAPPEDWINDOW, 80, 20, static_cast<int>(1180 * dpi),
+                              static_cast<int>(990 * dpi), nullptr, nullptr, inst, nullptr);
+    styleTitleBar(hwnd);
     if (!createDevice(hwnd)) {
         cleanupDevice();
         MessageBoxW(nullptr, L"Не удалось запустить Direct3D 11.", L"RplayPS", MB_ICONERROR);
@@ -150,24 +151,13 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.IniFilename = nullptr;
-    ImGui::StyleColorsDark();
-    ImGui::GetStyle().ScaleAllSizes(dpi);
-    // Cyrillic plus the punctuation the messages use: — … « » →
-    static ImVector<ImWchar> glyphs;
-    {
-        ImFontGlyphRangesBuilder builder;
-        builder.AddRanges(io.Fonts->GetGlyphRangesCyrillic());
-        static const ImWchar extra[] = {0x2010, 0x2027, 0x2190, 0x2193, 0};
-        builder.AddRanges(extra);
-        builder.BuildRanges(&glyphs);
-    }
-    if (!io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", 18.0f * dpi, nullptr, glyphs.Data))
-        io.Fonts->AddFontDefault();
+    const Fonts fonts = applyTheme(dpi);
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_device, g_context);
 
     App app;
     app.window = hwnd;
+    app.fonts = fonts;
     app.consoleOnly = hasArg(L"--console-only");
     const auto dir = appDataDir();
     app.pairingPath = dir / L"pairing.bin";
@@ -214,7 +204,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         ImGui::NewFrame();
         drawUi(app);
         ImGui::Render();
-        const float clear[4] = {0.08f, 0.08f, 0.1f, 1.0f};
+        const ImVec4 bg = toVec4(col::Bg);
+        const float clear[4] = {bg.x, bg.y, bg.z, 1.0f};
         g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
         g_context->ClearRenderTargetView(g_rtv, clear);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());

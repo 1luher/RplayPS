@@ -3,26 +3,32 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <iterator>
-#include <sstream>
 
 #include "core/account_id.h"
 
 namespace {
 
-const char* stateName(LinkState s) {
+struct StateLook {
+    const char* text;
+    ImU32 color;
+};
+
+StateLook stateLook(LinkState s) {
     switch (s) {
-        case LinkState::Idle: return "не подключено";
-        case LinkState::Searching: return "поиск";
-        case LinkState::Waking: return "пробуждение";
-        case LinkState::Connecting: return "подключение";
-        case LinkState::Connected: return "подключено";
-        case LinkState::Lost: return "связь потеряна";
+        case LinkState::Idle: return {"Не подключено", col::Muted};
+        case LinkState::Searching: return {"Поиск PS5", col::Warn};
+        case LinkState::Waking: return {"Пробуждение", col::Warn};
+        case LinkState::Connecting: return {"Подключение", col::Warn};
+        case LinkState::Connected: return {"Подключено", col::Good};
+        case LinkState::Lost: return {"Связь потеряна", col::Bad};
     }
-    return "";
+    return {"", col::Muted};
 }
 
 template <typename T>
@@ -30,23 +36,260 @@ bool ready(const std::future<T>& f) {
     return f.valid() && f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
 }
 
-void drawStick(const char* label, Stick s) {
-    const float radius = 50.0f;
-    ImGui::BeginGroup();
+ImU32 withAlpha(ImU32 c, int a) { return (c & 0x00FFFFFF) | (static_cast<ImU32>(a) << 24); }
+
+// Rounded "pill" with a dot: e.g. ● Подключено
+void pill(const char* text, ImU32 color, ImFont* font) {
+    ImGui::PushFont(font);
+    const ImVec2 ts = ImGui::CalcTextSize(text);
+    const float h = ts.y + 12, dot = 8, padX = 14;
+    const ImVec2 size(padX + dot + 8 + ts.x + padX, h);
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), withAlpha(color, 34), h * 0.5f);
+    dl->AddRect(p, ImVec2(p.x + size.x, p.y + size.y), withAlpha(color, 90), h * 0.5f);
+    dl->AddCircleFilled(ImVec2(p.x + padX + dot * 0.5f, p.y + h * 0.5f), dot * 0.5f, color);
+    dl->AddText(ImVec2(p.x + padX + dot + 8, p.y + 6), color, text);
+    ImGui::Dummy(size);
+    ImGui::PopFont();
+}
+
+// Keyboard key cap, e.g. [F8]
+void keycap(const char* key, ImFont* font) {
+    ImGui::PushFont(font);
+    const ImVec2 ts = ImGui::CalcTextSize(key);
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const ImVec2 size(ts.x + 16, ts.y + 8);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(ImVec2(p.x, p.y + 2), ImVec2(p.x + size.x, p.y + size.y + 2), col::Line, 6);
+    dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), col::CardHi, 6);
+    dl->AddText(ImVec2(p.x + 8, p.y + 4), col::Text, key);
+    ImGui::Dummy(ImVec2(size.x, size.y + 2));
+    ImGui::PopFont();
+}
+
+bool beginCard(const char* id, const char* iconGlyph, const char* title, const Fonts& f, float height = 0) {
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(18, 16));
+    const bool open = ImGui::BeginChild(id, ImVec2(0, height),
+                                        ImGuiChildFlags_Borders | (height == 0 ? ImGuiChildFlags_AutoResizeY : 0));
+    ImGui::PopStyleVar();
+    ImGui::PushFont(f.semibold);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Accent));
+    ImGui::TextUnformatted(iconGlyph);
+    ImGui::PopStyleColor();
+    ImGui::SameLine();
+    ImGui::TextUnformatted(title);
+    ImGui::PopFont();
+    ImGui::Dummy(ImVec2(0, 2));
+    return open;
+}
+
+void endCard() { ImGui::EndChild(); }
+
+bool primaryButton(const char* label, float width = 0) {
+    ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(IM_COL32(104, 145, 255, 255)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(IM_COL32(60, 104, 230, 255)));
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(IM_COL32(255, 255, 255, 255)));
+    const bool pressed = ImGui::Button(label, ImVec2(width, 0));
+    ImGui::PopStyleColor(4);
+    return pressed;
+}
+
+bool ghostButton(const char* label, float width = 0) { return ImGui::Button(label, ImVec2(width, 0)); }
+
+void mutedText(const char* text, const Fonts& f) {
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextWrapped("%s", text);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+}
+
+void noteText(const std::string& text, ImU32 color, const Fonts& f) {
+    if (text.empty()) return;
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(color));
+    ImGui::TextWrapped("%s", text.c_str());
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+}
+
+// One compact row: muted label on the left (hint on hover), slider on the right.
+void rowLabel(const char* label, const char* hint) {
+    ImGui::AlignTextToFramePadding();
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
     ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    if (hint) ImGui::SetItemTooltip("%s", hint);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x * 0.42f + ImGui::GetCursorStartPos().x);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+}
+
+bool sliderFloat(const char* label, const char* hint, float* v, float lo, float hi, const char* fmt,
+                 ImGuiSliderFlags flags = 0) {
+    rowLabel(label, hint);
+    const std::string id = std::string("##") + label;
+    return ImGui::SliderFloat(id.c_str(), v, lo, hi, fmt, flags);
+}
+
+bool sliderInt(const char* label, const char* hint, int* v, int lo, int hi, const char* fmt) {
+    rowLabel(label, hint);
+    const std::string id = std::string("##") + label;
+    return ImGui::SliderInt(id.c_str(), v, lo, hi, fmt);
+}
+
+bool inputField(const char* label, const char* hint, char* buf, size_t size, const Fonts& f,
+                ImGuiInputTextFlags flags = 0) {
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    const std::string id = std::string("##") + label;
+    return ImGui::InputTextWithHint(id.c_str(), hint, buf, size, flags);
+}
+
+void stickView(const char* label, Stick s, float radius, const Fonts& f) {
+    ImGui::BeginGroup();
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const ImVec2 c(p.x + radius, p.y + radius);
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddCircle(c, radius, IM_COL32(150, 150, 150, 255), 48, 1.5f);
-    dl->AddLine(ImVec2(c.x - radius, c.y), ImVec2(c.x + radius, c.y), IM_COL32(80, 80, 80, 255));
-    dl->AddLine(ImVec2(c.x, c.y - radius), ImVec2(c.x, c.y + radius), IM_COL32(80, 80, 80, 255));
-    dl->AddCircleFilled(ImVec2(c.x + s.x * radius, c.y + s.y * radius), 6.0f, IM_COL32(90, 200, 255, 255));
-    ImGui::Dummy(ImVec2(radius * 2, radius * 2));
-    ImGui::Text("%+.2f  %+.2f", s.x, s.y);
+    dl->AddCircleFilled(c, radius, IM_COL32(16, 18, 24, 255), 64);
+    dl->AddCircle(c, radius, col::Line, 64, 1.5f);
+    dl->AddCircle(c, radius * 0.5f, withAlpha(col::Line, 140), 48, 1.0f);
+    dl->AddLine(ImVec2(c.x - radius + 8, c.y), ImVec2(c.x + radius - 8, c.y), withAlpha(col::Line, 160));
+    dl->AddLine(ImVec2(c.x, c.y - radius + 8), ImVec2(c.x, c.y + radius - 8), withAlpha(col::Line, 160));
+    const ImVec2 dot(c.x + s.x * (radius - 10), c.y + s.y * (radius - 10));
+    const bool active = std::hypot(s.x, s.y) > 0.01f;
+    if (active) {
+        dl->AddLine(c, dot, withAlpha(col::Accent, 120), 2.0f);
+        for (int i = 4; i >= 1; --i) dl->AddCircleFilled(dot, 7.0f + i * 3.0f, withAlpha(col::Accent, 14));
+    }
+    dl->AddCircleFilled(dot, 8.0f, active ? col::Accent : col::Muted, 24);
+    dl->AddCircleFilled(dot, 3.0f, IM_COL32(255, 255, 255, 220), 12);
+    ImGui::Dummy(ImVec2(radius * 2, radius * 2 + 6));
+    ImGui::PushFont(f.tiny);
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%s   %+.2f  %+.2f", label, s.x, s.y);
+    const float w = ImGui::CalcTextSize(buf).x;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.0f, radius - w * 0.5f));
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted(buf);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
     ImGui::EndGroup();
 }
 
+void statTile(const char* label, const char* value, const char* unit, float width, const Fonts& f) {
+    ImGui::BeginGroup();
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float h = 68;
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + width, p.y + h), IM_COL32(16, 18, 24, 255), 10);
+    ImGui::SetCursorScreenPos(ImVec2(p.x + 12, p.y + 8));
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SetCursorScreenPos(ImVec2(p.x + 12, p.y + 30));
+    ImGui::PushFont(f.big);
+    ImGui::TextUnformatted(value);
+    ImGui::PopFont();
+    ImGui::SameLine(0, 4);
+    ImGui::PushFont(f.tiny);
+    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, p.y + 40));
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted(unit);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SetCursorScreenPos(p);
+    ImGui::Dummy(ImVec2(width, h));
+    ImGui::EndGroup();
+}
+
+void triggerBar(const char* label, std::uint8_t value, const Fonts& f) {
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted(label);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SameLine(36);
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float w = ImGui::GetContentRegionAvail().x, h = 8;
+    const float y = p.y + 6;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w, y + h), IM_COL32(16, 18, 24, 255), h);
+    if (value) dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w * value / 255.0f, y + h), col::Accent, h);
+    ImGui::Dummy(ImVec2(w, 20));
+}
+
+// ------------------------------------------------------------------ sections
+
+void drawHeader(App& app) {
+    const Fonts& f = app.fonts;
+    LinkState state;
+    {
+        std::lock_guard lock(app.statusMutex);
+        state = app.linkState;
+    }
+    ImGui::PushFont(f.title);
+    ImGui::TextUnformatted("RplayPS");
+    ImGui::PopFont();
+    ImGui::SameLine();
+    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
+    mutedText("клавиатура и мышь для PS5", f);
+
+    // Right side: link state pill.
+    const StateLook look = app.consoleOnly ? StateLook{"Без консоли", col::Muted} : stateLook(state);
+    ImGui::PushFont(f.semibold);
+    const float pillW = ImGui::CalcTextSize(look.text).x + 14 + 8 + 8 + 14;
+    ImGui::PopFont();
+    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW);
+    ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 4);
+    pill(look.text, look.color, f.semibold);
+    ImGui::Dummy(ImVec2(0, 4));
+}
+
+void drawCaptureBanner(App& app) {
+    const Fonts& f = app.fonts;
+    const bool captured = app.input->captured();
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float w = ImGui::GetContentRegionAvail().x, h = 62;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImU32 tone = captured ? col::Good : col::Accent;
+    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), withAlpha(tone, captured ? 36 : 22), 14);
+    dl->AddRect(p, ImVec2(p.x + w, p.y + h), withAlpha(tone, captured ? 140 : 70), 14, 0, 1.5f);
+
+    ImGui::SetCursorScreenPos(ImVec2(p.x + 18, p.y + 14));
+    ImGui::PushFont(f.title);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(tone));
+    ImGui::TextUnformatted(icon::Keyboard);
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SameLine(0, 14);
+    ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, p.y + 10));
+    ImGui::BeginGroup();
+    ImGui::PushFont(f.semibold);
+    ImGui::TextUnformatted(captured ? "Захват включён — управление уходит на PS5" : "Захват выключен");
+    ImGui::PopFont();
+    mutedText(captured ? "Отпустить: F8. Если окно потеряет фокус, всё отпустится само."
+                       : "Нажмите F8, затем переключите монитор на вход PS5.",
+              f);
+    ImGui::EndGroup();
+
+    ImGui::PushFont(f.semibold);
+    const float capW = ImGui::CalcTextSize("F8").x + 16;
+    ImGui::PopFont();
+    ImGui::SetCursorScreenPos(ImVec2(p.x + w - capW - 20, p.y + 16));
+    keycap("F8", f.semibold);
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h + 12));
+    ImGui::Dummy(ImVec2(0, 0));
+}
+
 void drawPs5(App& app) {
+    const Fonts& f = app.fonts;
     LinkState state;
     std::string message;
     {
@@ -54,50 +297,72 @@ void drawPs5(App& app) {
         state = app.linkState;
         message = app.linkMessage;
     }
+    beginCard("##ps5", icon::Game, "PS5", f);
     if (app.consoleOnly) {
-        ImGui::TextWrapped("Режим без консоли: на PS5 ничего не отправляется.");
+        mutedText("Режим без консоли: на PS5 ничего не отправляется. Удобно настраивать мышь.", f);
+        endCard();
         return;
     }
-    ImGui::Text("Состояние: %s", stateName(state));
-    if (!message.empty()) ImGui::TextWrapped("%s", message.c_str());
 
     if (app.pairing) {
-        ImGui::Text("PS5: %s (%s)", app.pairing->name.c_str(), app.pairing->host.c_str());
-        const bool busy = state != LinkState::Idle && state != LinkState::Lost;
-        if (!busy && ImGui::Button("Подключить")) app.link->connect(*app.pairing);
-        if (busy && ImGui::Button("Отключить")) app.link->disconnect();
+        ImGui::PushFont(f.semibold);
+        ImGui::TextUnformatted(app.pairing->name.empty() ? "PS5" : app.pairing->name.c_str());
+        ImGui::PopFont();
         ImGui::SameLine();
-        if (ImGui::Button("Забыть PS5")) {
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 2);
+        mutedText(app.pairing->host.c_str(), f);
+        noteText(message, state == LinkState::Lost ? col::Bad : col::Muted, f);
+        ImGui::Dummy(ImVec2(0, 2));
+        const bool busy = state != LinkState::Idle && state != LinkState::Lost;
+        const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        if (!busy) {
+            if (primaryButton("Подключить", half)) app.link->connect(*app.pairing);
+        } else if (ghostButton("Отключить", half)) {
+            app.link->disconnect();
+        }
+        ImGui::SameLine();
+        if (ghostButton("Забыть PS5", half)) {
             app.link->disconnect();
             std::error_code ec;
             std::filesystem::remove(app.pairingPath, ec);
             app.pairing.reset();
         }
+        endCard();
         return;
     }
 
     // Not paired yet.
-    ImGui::TextWrapped("PS5 не привязана. На PS5: Настройки → Система → Дистанционное воспроизведение → "
-                       "Привязать устройство. Введите IP, account ID и PIN с экрана.");
+    mutedText("На PS5: Настройки → Система → Дистанционное воспроизведение → Привязать устройство. "
+              "Введите адрес, account ID и PIN с экрана.",
+              f);
     const bool pairingBusy = app.pairing_job.valid();
     const bool findBusy = app.discover_job.valid();
-    if (!findBusy && ImGui::Button("Найти PS5")) {
-        Ps5Link* link = app.link;
-        app.discover_job = std::async(std::launch::async, [link] { return link->discover(std::chrono::milliseconds(2500)); });
+    ImGui::Dummy(ImVec2(0, 2));
+    {
+        const std::string findLabel = std::string(icon::Search) + (findBusy ? "  Ищу…" : "  Найти PS5 в сети");
+        ImGui::BeginDisabled(findBusy);
+        if (ghostButton(findLabel.c_str(), -FLT_MIN)) {
+            Ps5Link* link = app.link;
+            app.discover_job =
+                std::async(std::launch::async, [link] { return link->discover(std::chrono::milliseconds(2500)); });
+        }
+        ImGui::EndDisabled();
     }
-    if (findBusy) ImGui::TextUnformatted("Ищу…");
     if (ready(app.discover_job)) {
         app.found = app.discover_job.get();
         if (app.found.empty()) app.pairError = "PS5 не найдена. Она включена и в той же сети? VPN выключен?";
     }
     for (const auto& c : app.found) {
-        const std::string label = c.name + "  " + c.host + (c.ready ? "" : "  (спит)");
-        if (ImGui::Selectable(label.c_str())) strncpy_s(app.hostField, c.host.c_str(), _TRUNCATE);
+        const std::string label = c.name + "   " + c.host + (c.ready ? "" : "   · спит");
+        if (ImGui::Selectable(label.c_str(), false, 0, ImVec2(0, 26))) strncpy_s(app.hostField, c.host.c_str(), _TRUNCATE);
     }
-    ImGui::InputText("IP", app.hostField, sizeof(app.hostField));
-    ImGui::InputText("Account ID", app.accountField, sizeof(app.accountField));
-    ImGui::InputText("PIN", app.pinField, sizeof(app.pinField), ImGuiInputTextFlags_CharsDecimal);
-    if (!pairingBusy && ImGui::Button("Привязать")) {
+    inputField("Адрес PS5", "192.168.1.50", app.hostField, sizeof(app.hostField), f);
+    inputField("Account ID", "число или 12 символов base64", app.accountField, sizeof(app.accountField), f);
+    inputField("PIN", "8 цифр с экрана PS5", app.pinField, sizeof(app.pinField), f, ImGuiInputTextFlags_CharsDecimal);
+    ImGui::Dummy(ImVec2(0, 2));
+    ImGui::BeginDisabled(pairingBusy);
+    const std::string pairLabel = std::string(icon::Link) + (pairingBusy ? "  Привязываю… до 30 с" : "  Привязать");
+    if (primaryButton(pairLabel.c_str(), -FLT_MIN)) {
         std::string error;
         const auto account = parseAccountId(app.accountField, &error);
         const auto pin = parsePin(app.pinField);
@@ -120,7 +385,7 @@ void drawPs5(App& app) {
             });
         }
     }
-    if (pairingBusy) ImGui::TextUnformatted("Привязываю… (до 30 секунд)");
+    ImGui::EndDisabled();
     if (ready(app.pairing_job)) {
         auto [p, error] = app.pairing_job.get();
         if (!p) app.pairError = error;
@@ -131,32 +396,97 @@ void drawPs5(App& app) {
             app.link->connect(*app.pairing);
         }
     }
-    if (!app.pairError.empty()) ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "%s", app.pairError.c_str());
+    noteText(app.pairError, col::Bad, f);
+    endCard();
 }
 
 void drawMouse(App& app) {
+    const Fonts& f = app.fonts;
     MouseSettings& m = app.profile.mouse;
     bool changed = false;
-    changed |= ImGui::SliderFloat("Чувствительность", &m.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
-    changed |= ImGui::SliderFloat("Вертикаль / горизонталь", &m.yRatio, 0.25f, 3.0f, "%.2f");
-    changed |= ImGui::Checkbox("Инвертировать Y", &m.invertY);
-    changed |= ImGui::SliderFloat("Кривая (степень)", &m.exponent, 0.5f, 3.0f, "%.2f");
-    changed |= ImGui::SliderFloat("Анти-мёртвая зона", &m.antiDeadzone, 0.0f, 0.5f, "%.2f");
-    changed |= ImGui::SliderFloat("Максимальный наклон", &m.outerLimit, 0.5f, 1.0f, "%.2f");
-    changed |= ImGui::SliderInt("Окно скорости, мс", &m.windowMs, 2, 32);
-    changed |= ImGui::SliderInt("Возврат в центр, мс", &m.recenterMs, 2, 100);
-    changed |= ImGui::SliderFloat("Шаг (Alt), доля", &app.profile.walkScale, 0.1f, 1.0f, "%.2f");
+    beginCard("##mouse", icon::Mouse, "Мышь", f);
+    changed |= sliderFloat("Чувствительность", "Сколько поворачивает камера при том же движении мыши",
+                           &m.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+    changed |= sliderFloat("Кривая", "1 — линейно; больше — точнее на медленных движениях", &m.exponent, 0.5f, 3.0f,
+                           "%.2f");
+    changed |= sliderFloat("Вертикаль", "Чувствительность по вертикали относительно горизонтали", &m.yRatio, 0.25f,
+                           3.0f, "× %.2f");
+    changed |= sliderFloat("Анти-мёртвая зона", "Сразу перепрыгивает мёртвую зону стика в игре", &m.antiDeadzone,
+                           0.0f, 0.5f, "%.2f");
+    changed |= sliderFloat("Макс. наклон", "Сильнее этого стик не отклоняется", &m.outerLimit, 0.5f, 1.0f, "%.2f");
+    changed |= sliderInt("Окно скорости", "Меньше — быстрее отклик, больше — плавнее", &m.windowMs, 2, 32, "%d мс");
+    changed |= sliderInt("Возврат в центр", "Через сколько стик встаёт в центр, когда мышь остановилась",
+                         &m.recenterMs, 2, 100, "%d мс");
+    changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &app.profile.walkScale,
+                           0.1f, 1.0f, "%.2f");
+    changed |= ImGui::Checkbox("Инвертировать ось Y", &m.invertY);
     if (changed) {
         m.clamp();
         app.input->setProfile(app.profile);
         app.saveNote.clear();
     }
-    if (ImGui::Button("Сохранить профиль")) saveProfile(app);
+    ImGui::Dummy(ImVec2(0, 4));
+    const std::string saveLabel = std::string(icon::Save) + "  Сохранить профиль";
+    if (primaryButton(saveLabel.c_str())) saveProfile(app);
     if (!app.saveNote.empty()) {
         ImGui::SameLine();
-        ImGui::TextUnformatted(app.saveNote.c_str());
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
+        noteText(app.saveNote, col::Good, f);
     }
-    for (const auto& w : app.profileWarnings) ImGui::TextColored(ImVec4(1, 0.8f, 0.3f, 1), "%s", w.c_str());
+    for (const auto& w : app.profileWarnings) noteText(w, col::Warn, f);
+    endCard();
+}
+
+void drawLive(App& app) {
+    const Fonts& f = app.fonts;
+    const InputStats s = app.input->stats();
+    beginCard("##live", icon::Pulse, "Что уходит на PS5", f);
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float radius = std::min(86.0f, (avail - 40) * 0.25f);
+    const float gap = avail - radius * 4;
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + gap / 3);
+    stickView("Левый", s.lastPad.left, radius, f);
+    ImGui::SameLine(0, gap / 3);
+    stickView("Правый", s.lastPad.right, radius, f);
+    ImGui::Dummy(ImVec2(0, 4));
+    triggerBar("L2", s.lastPad.l2, f);
+    triggerBar("R2", s.lastPad.r2, f);
+    ImGui::Dummy(ImVec2(0, 4));
+    const float tileW = (avail - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
+    char a[32], b[32], c[32];
+    std::snprintf(a, sizeof(a), "%.0f", s.mouseHz);
+    std::snprintf(b, sizeof(b), "%.2f", s.tickJitterUs / 1000.0);
+    int pressed = 0;
+    for (unsigned bits = s.lastPad.buttons; bits; bits &= bits - 1) ++pressed;
+    std::snprintf(c, sizeof(c), "%d", pressed);
+    statTile("Мышь", a, "Гц", tileW, f);
+    ImGui::SameLine();
+    statTile("Опоздание тика", b, "мс", tileW, f);
+    ImGui::SameLine();
+    statTile("Кнопки нажаты", c, "", tileW, f);
+    endCard();
+}
+
+void drawKeys(App& app) {
+    const Fonts& f = app.fonts;
+    beginCard("##keys", icon::Keyboard, "Горячие клавиши", f);
+    struct Row {
+        const char* key;
+        const char* what;
+    };
+    static const Row rows[] = {
+        {"F8", "захват вкл / выкл"},
+        {"WASD", "движение"},
+        {"LAlt", "шаг"},
+        {"ЛКМ / ПКМ", "R2 / L2"},
+    };
+    for (const Row& r : rows) {
+        keycap(r.key, f.tiny);
+        ImGui::SameLine(0, 12);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
+        mutedText(r.what, f);
+    }
+    endCard();
 }
 
 }  // namespace
@@ -184,7 +514,7 @@ void saveProfile(App& app) {
     std::filesystem::create_directories(app.profilePath.parent_path(), ec);
     std::ofstream f(app.profilePath, std::ios::binary | std::ios::trunc);
     f << profileToJson(app.profile);
-    app.saveNote = f ? "Сохранено." : "Не удалось сохранить.";
+    app.saveNote = f ? "Сохранено" : "Не удалось сохранить";
 }
 
 void startCapture(App& app) {
@@ -199,24 +529,26 @@ void drawUi(App& app) {
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(vp->WorkPos);
     ImGui::SetNextWindowSize(vp->WorkSize);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(24, 20));
     ImGui::Begin("RplayPS", nullptr,
-                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+                 ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings |
+                     ImGuiWindowFlags_NoBringToFrontOnFocus);
+    ImGui::PopStyleVar();
 
-    const bool captured = app.input->captured();
-    ImGui::TextColored(captured ? ImVec4(0.4f, 1, 0.5f, 1) : ImVec4(1, 1, 1, 1), "%s",
-                       captured ? "ЗАХВАТ ВКЛЮЧЁН — F8 чтобы выключить"
-                                : "F8 — захват. Затем переключите монитор на вход PS5.");
-    ImGui::Separator();
+    drawHeader(app);
+    drawCaptureBanner(app);
 
-    if (ImGui::CollapsingHeader("PS5", ImGuiTreeNodeFlags_DefaultOpen)) drawPs5(app);
-    if (ImGui::CollapsingHeader("Мышь", ImGuiTreeNodeFlags_DefaultOpen)) drawMouse(app);
-    if (ImGui::CollapsingHeader("Визуализатор", ImGuiTreeNodeFlags_DefaultOpen)) {
-        const InputStats s = app.input->stats();
-        drawStick("Левый стик", s.lastPad.left);
-        ImGui::SameLine(0, 40);
-        drawStick("Правый стик", s.lastPad.right);
-        ImGui::Text("Мышь: %.0f событий/с   Опоздание тика: %.0f мкс   L2 %u  R2 %u", s.mouseHz, s.tickJitterUs,
-                    s.lastPad.l2, s.lastPad.r2);
+    if (ImGui::BeginTable("##cols", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) {
+        ImGui::TableNextColumn();
+        drawPs5(app);
+        ImGui::Dummy(ImVec2(0, 2));
+        drawMouse(app);
+        ImGui::TableNextColumn();
+        drawLive(app);
+        ImGui::Dummy(ImVec2(0, 2));
+        drawKeys(app);
+        ImGui::EndTable();
     }
     ImGui::End();
 }

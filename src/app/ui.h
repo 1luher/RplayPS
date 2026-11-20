@@ -12,6 +12,7 @@
 
 #include "core/profile.h"
 #include "ps5/link.h"
+#include "app/theme.h"
 #include "win/input_thread.h"
 
 // Messages posted to the main window from worker threads.
@@ -21,6 +22,7 @@ constexpr UINT kMsgCapture = WM_APP + 11;    // wParam = CaptureEvent
 struct App {
     HWND window = nullptr;
     bool consoleOnly = false;  // --console-only: no PS5, visualiser only
+    Fonts fonts;
 
     Ps5Link* link = nullptr;
     InputThread* input = nullptr;
