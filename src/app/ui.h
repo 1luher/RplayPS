@@ -51,6 +51,7 @@ struct App {
     std::string saveNote;
     ControlClass editClass = ControlClass::Foot;  // which class the mouse tab edits
     Page page = Page::Home;                         // sidebar section
+    bool mouseDirty = false;                        // save once the slider is released
 
     // Key binding editor: waiting for a key for (keysClass, bindAction, bindSlot).
     ControlClass keysClass = ControlClass::Foot;

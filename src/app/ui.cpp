@@ -117,28 +117,63 @@ void noteText(const std::string& text, ImU32 color, const Fonts& f) {
     ImGui::PopFont();
 }
 
-// One compact row: muted label on the left (hint on hover), slider on the right.
+constexpr float kNumberFieldWidth = 84;
+
+// One compact row: muted label on the left (hint on hover), slider, then a field to type the number.
 void rowLabel(const char* label, const char* hint) {
     ImGui::AlignTextToFramePadding();
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
     ImGui::TextUnformatted(label);
     ImGui::PopStyleColor();
     if (hint) ImGui::SetItemTooltip("%s", hint);
-    ImGui::SameLine(ImGui::GetContentRegionAvail().x * 0.42f + ImGui::GetCursorStartPos().x);
-    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::SameLine(ImGui::GetContentRegionAvail().x * 0.36f + ImGui::GetCursorStartPos().x);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - kNumberFieldWidth - ImGui::GetStyle().ItemSpacing.x);
 }
 
 bool sliderFloat(const char* label, const char* hint, float* v, float lo, float hi, const char* fmt,
                  ImGuiSliderFlags flags = 0) {
     rowLabel(label, hint);
     const std::string id = std::string("##") + label;
-    return ImGui::SliderFloat(id.c_str(), v, lo, hi, fmt, flags);
+    bool changed = ImGui::SliderFloat(id.c_str(), v, lo, hi, fmt, flags | ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(kNumberFieldWidth);
+    if (ImGui::InputFloat((id + "_n").c_str(), v, 0, 0, "%.2f")) {
+        *v = std::clamp(*v, lo, hi);
+        changed = true;
+    }
+    return changed;
 }
 
 bool sliderInt(const char* label, const char* hint, int* v, int lo, int hi, const char* fmt) {
     rowLabel(label, hint);
     const std::string id = std::string("##") + label;
-    return ImGui::SliderInt(id.c_str(), v, lo, hi, fmt);
+    bool changed = ImGui::SliderInt(id.c_str(), v, lo, hi, fmt, ImGuiSliderFlags_AlwaysClamp);
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(kNumberFieldWidth);
+    if (ImGui::InputInt((id + "_n").c_str(), v, 0, 0)) {
+        *v = std::clamp(*v, lo, hi);
+        changed = true;
+    }
+    return changed;
+}
+
+// "прыжок" -> "Прыжок" (UTF-8 Cyrillic and Latin).
+std::string capitalized(const char* s) {
+    std::string out(s);
+    if (out.size() >= 2) {
+        auto* b = reinterpret_cast<unsigned char*>(out.data());
+        if (b[0] == 0xD0 && b[1] >= 0xB0 && b[1] <= 0xBF) {  // а..п
+            b[1] -= 0x20;
+        } else if (b[0] == 0xD1 && b[1] >= 0x80 && b[1] <= 0x8F) {  // р..я
+            b[0] = 0xD0;
+            b[1] += 0x20;
+        } else if (b[0] == 0xD1 && b[1] == 0x91) {  // ё
+            b[0] = 0xD0;
+            b[1] = 0x81;
+        }
+    }
+    if (!out.empty() && out[0] >= 'a' && out[0] <= 'z') out[0] = static_cast<char>(out[0] - 'a' + 'A');
+    return out;
 }
 
 bool inputField(const char* label, const char* hint, char* buf, size_t size, const Fonts& f,
@@ -427,43 +462,56 @@ void drawMouse(App& app) {
     }
     Layout& layout = app.profile.layout(app.editClass);
     MouseSettings& m = layout.mouse;
+    const bool vehicle = app.editClass == ControlClass::Ground || app.editClass == ControlClass::Water;
     mutedText(layout.mouseTarget == MouseTarget::LeftStick ? "Мышь здесь управляет наклонами (левый стик)."
                                                            : "Мышь здесь управляет камерой (правый стик).",
               f);
-    changed |= sliderFloat("Чувствительность", "Сколько поворачивает камера при том же движении мыши",
+    ImGui::Dummy(ImVec2(0, 2));
+
+    // What almost everyone needs.
+    changed |= sliderFloat("Чувствительность", "Насколько поворачивает камера при том же движении мыши. "
+                                               "Можно вписать число в поле справа.",
                            &m.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
-    changed |= sliderFloat("Кривая", "1 — линейно; больше — точнее на медленных движениях", &m.exponent, 0.5f, 3.0f,
-                           "%.2f");
     changed |= sliderFloat("Вертикаль", "Чувствительность по вертикали относительно горизонтали", &m.yRatio, 0.25f,
                            3.0f, "× %.2f");
-    changed |= sliderFloat("Анти-мёртвая зона", "Сразу перепрыгивает мёртвую зону стика в игре", &m.antiDeadzone,
-                           0.0f, 0.5f, "%.2f");
-    changed |= sliderFloat("Макс. наклон", "Сильнее этого стик не отклоняется", &m.outerLimit, 0.5f, 1.0f, "%.2f");
-    changed |= sliderInt("Окно скорости", "Меньше — быстрее отклик, больше — плавнее", &m.windowMs, 2, 32, "%d мс");
-    changed |= sliderInt("Возврат в центр", "Через сколько стик встаёт в центр, когда мышь остановилась",
-                         &m.recenterMs, 2, 100, "%d мс");
-    changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &layout.walkScale,
-                           0.1f, 1.0f, "%.2f");
-    if (app.editClass == ControlClass::Ground || app.editClass == ControlClass::Water) {
-        changed |= sliderInt("Плавность руля", "За сколько мс A/D доводят руль до упора (0 — сразу)", &layout.steerRampMs,
-                             0, 500, "%d мс");
+    if (vehicle) {
+        changed |= sliderInt("Плавность руля", "За сколько миллисекунд A/D доводят руль до упора (0 — сразу)",
+                             &layout.steerRampMs, 0, 500, "%d мс");
         changed |= sliderFloat("Мягкий газ (Alt)", "Сила газа и тормоза, пока зажат Alt", &layout.softTrigger, 0.1f,
                                1.0f, "%.2f");
     }
     changed |= ImGui::Checkbox("Инвертировать ось Y", &m.invertY);
+
+    // Everything else: folded away.
+    ImGui::Dummy(ImVec2(0, 4));
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
+    if (ImGui::CollapsingHeader("Тонкая настройка")) {
+        changed |= sliderFloat("Кривая", "1 — линейно; больше — точнее на медленных движениях", &m.exponent, 0.5f, 3.0f,
+                               "%.2f");
+        changed |= sliderFloat("Анти-мёртвая зона", "Сразу перепрыгивает мёртвую зону стика в игре", &m.antiDeadzone,
+                               0.0f, 0.5f, "%.2f");
+        changed |= sliderFloat("Макс. наклон", "Сильнее этого стик не отклоняется", &m.outerLimit, 0.5f, 1.0f, "%.2f");
+        changed |= sliderInt("Окно скорости", "Меньше — быстрее отклик, больше — плавнее", &m.windowMs, 2, 32, "%d мс");
+        changed |= sliderInt("Возврат в центр", "Через сколько стик встаёт в центр, когда мышь остановилась",
+                             &m.recenterMs, 2, 100, "%d мс");
+        if (app.editClass == ControlClass::Foot)
+            changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &layout.walkScale,
+                                   0.1f, 1.0f, "%.2f");
+    }
+    ImGui::PopStyleColor();
+
     if (changed) {
         m.clamp();
         app.input->setProfile(app.profile);
-        app.saveNote.clear();
+        app.mouseDirty = true;
     }
-    ImGui::Dummy(ImVec2(0, 4));
-    const std::string saveLabel = std::string(icon::Save) + "  Сохранить профиль";
-    if (primaryButton(saveLabel.c_str())) saveProfile(app);
-    if (!app.saveNote.empty()) {
-        ImGui::SameLine();
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 6);
-        noteText(app.saveNote, col::Good, f);
+    // Saved automatically once you let go of the slider / leave the field.
+    if (app.mouseDirty && !ImGui::IsAnyItemActive()) {
+        saveProfile(app);
+        app.mouseDirty = false;
     }
+    if (!app.saveNote.empty()) noteText(app.saveNote == "Сохранено" ? "Сохранено автоматически" : app.saveNote,
+                                        app.saveNote == "Сохранено" ? col::Muted : col::Bad, f);
     for (const auto& w : app.profileWarnings) noteText(w, col::Warn, f);
     endCard();
 }
@@ -668,7 +716,9 @@ void drawBindings(App& app) {
     }
     const Layout& layout = app.profile.layout(app.keysClass);
     ImGui::BeginChild("##keys_list", ImVec2(0, 560), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
-    if (ImGui::BeginTable("##keys_table", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+    ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(14, 4));
+    if (ImGui::BeginTable("##keys_table", 4,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_PadOuterX)) {
         ImGui::TableSetupColumn("Действие", ImGuiTableColumnFlags_WidthStretch, 2.2f);
         ImGui::TableSetupColumn("Кнопка", ImGuiTableColumnFlags_WidthStretch, 1.0f);
         ImGui::TableSetupColumn("Клавиша", ImGuiTableColumnFlags_WidthStretch, 1.0f);
@@ -678,7 +728,7 @@ void drawBindings(App& app) {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted(actionMeaningRu(app.keysClass, a));
+            ImGui::TextUnformatted(capitalized(actionMeaningRu(app.keysClass, a)).c_str());
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
             ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
@@ -703,6 +753,7 @@ void drawBindings(App& app) {
         }
         ImGui::EndTable();
     }
+    ImGui::PopStyleVar();
     ImGui::EndChild();
     noteText(app.bindNote, col::Warn, f);
     endCard();

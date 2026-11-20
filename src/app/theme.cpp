@@ -92,6 +92,14 @@ Fonts applyTheme(float dpi) {
     c[ImGuiCol_ScrollbarGrab] = toVec4(col::Line);
     c[ImGuiCol_TextSelectedBg] = toVec4(IM_COL32(255, 86, 136, 80));
     c[ImGuiCol_NavHighlight] = toVec4(col::Accent);
+    c[ImGuiCol_Tab] = toVec4(IM_COL32(26, 26, 33, 255));
+    c[ImGuiCol_TabHovered] = toVec4(IM_COL32(40, 40, 50, 255));
+    c[ImGuiCol_TabSelected] = toVec4(IM_COL32(44, 44, 56, 255));
+    c[ImGuiCol_TabSelectedOverline] = toVec4(col::Accent);
+    c[ImGuiCol_TabDimmed] = c[ImGuiCol_Tab];
+    c[ImGuiCol_TabDimmedSelected] = c[ImGuiCol_TabSelected];
+    c[ImGuiCol_TableRowBg] = ImVec4(0, 0, 0, 0);
+    c[ImGuiCol_TableRowBgAlt] = toVec4(IM_COL32(255, 255, 255, 6));
     return f;
 }
 
