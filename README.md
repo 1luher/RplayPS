@@ -8,6 +8,10 @@ GTA 6). Нужен только компьютер с Windows в той же д�
 
 ![Окно RplayPS](docs/screenshot.png)
 
+## Скачать
+Готовая сборка: [последний релиз](https://github.com/1luher/RplayPS/releases/latest) — `RplayPS-windows-x64.zip`,
+распаковать и запустить `rplayps.exe`. Сборка каждого коммита — во вкладке [Actions](https://github.com/1luher/RplayPS/actions).
+
 ## Сборка
 Нужны Visual Studio 2022 Build Tools (C++) и CMake.
 
