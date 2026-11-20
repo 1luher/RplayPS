@@ -150,3 +150,14 @@ TEST_CASE("huge_function_key_number_does_not_throw") {
     CHECK_FALSE(parseInputCode("F13"));
     CHECK(parseInputCode("F12") == vk::F12);
 }
+
+TEST_CASE("one_key_can_press_several_buttons") {  // e.g. GTA 6 "Focus" = L3 + R3
+    Bindings b;
+    b.slots[static_cast<size_t>(Action::L3)][0] = 'Q';
+    b.slots[static_cast<size_t>(Action::R3)][0] = 'Q';
+    PadBuilder pb(b, 0.5f);
+    pb.setInput('Q', true, 0);
+    const PadState p = pb.build(1, {});
+    CHECK(p.pressed(PadButton::L3));
+    CHECK(p.pressed(PadButton::R3));
+}
