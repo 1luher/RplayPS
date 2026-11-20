@@ -5,6 +5,8 @@
 #include <d3d11.h>
 #include <shellapi.h>
 
+#include <chrono>
+
 #include <imgui.h>
 #include <backends/imgui_impl_dx11.h>
 #include <backends/imgui_impl_win32.h>
@@ -118,6 +120,12 @@ LRESULT WINAPI wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     return DefWindowProcW(hwnd, msg, wp, lp);
 }
 
+// Milliseconds since start: one clock for video frames, game events and pad changes.
+double sessionMs() {
+    static const auto start = std::chrono::steady_clock::now();
+    return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+}
+
 bool hasArg(const wchar_t* name) {
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -173,8 +181,16 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
         }
         PostMessageW(hwnd, kMsgLinkState, static_cast<WPARAM>(s), 0);
     });
+    // Everything the game sends back goes to the recorder (it ignores it unless recording).
+    link.setFeedback({[&app](const std::uint8_t* data, size_t size) {
+                          app.recorder.onVideoSample(sessionMs(), {data, size});
+                      },
+                      [&app](const char* type, const std::string& json) {
+                          app.recorder.onEvent(sessionMs(), type, json);
+                      }});
     InputThread input(hwnd, {[&link, &app](const PadState& pad) {
                                  if (!app.consoleOnly) link.submit(pad);
+                                 app.recorder.onPad(sessionMs(), pad);
                              },
                              [hwnd](CaptureEvent e) { PostMessageW(hwnd, kMsgCapture, static_cast<WPARAM>(e), 0); }});
     app.link = &link;
@@ -215,6 +231,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     g_app = nullptr;
     input.stop();       // releases capture: a neutral pad goes to the PS5
     link.disconnect();  // neutral state first, then stop
+    app.recorder.stop();
     if (app.pairing_job.valid()) app.pairing_job.wait();
     if (app.discover_job.valid()) app.discover_job.wait();
 

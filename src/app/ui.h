@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/profile.h"
+#include "core/recorder.h"
 #include "ps5/link.h"
 #include "app/theme.h"
 #include "win/input_thread.h"
@@ -45,6 +46,9 @@ struct App {
     char accountField[64] = "";
     char pinField[16] = "";
     std::string saveNote;
+
+    Recorder recorder;  // training data for the vehicle detector
+    std::string recordError;
 };
 
 void loadProfile(App& app);

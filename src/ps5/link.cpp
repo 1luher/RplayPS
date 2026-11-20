@@ -20,6 +20,7 @@ extern "C" {
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <condition_variable>
 #include <cstring>
 #include <mutex>
@@ -145,6 +146,7 @@ ChiakiControllerState padToChiaki(const PadState& pad) {
 
 struct Ps5Link::Impl {
     StateFn onState;
+    Feedback feedback;  // set before connect()
     ChiakiLog log{};
     bool libReady = false;
 
@@ -261,8 +263,33 @@ struct Ps5Link::Impl {
     }
 
     // ------------------------------------------------------------- session
+    static bool videoCb(uint8_t* buf, size_t size, int32_t, bool, void* user) {
+        auto* self = static_cast<Impl*>(user);
+        if (self->feedback.onVideo) self->feedback.onVideo(buf, size);
+        return true;
+    }
+
     static void eventCb(ChiakiEvent* e, void* user) {
         auto* self = static_cast<Impl*>(user);
+        if (self->feedback.onEvent) {  // game feedback: forwarded outside the lock
+            char json[256];
+            if (e->type == CHIAKI_EVENT_RUMBLE) {
+                std::snprintf(json, sizeof(json), "{\"left\":%u,\"right\":%u}", e->rumble.left, e->rumble.right);
+                self->feedback.onEvent("rumble", json);
+                return;
+            }
+            if (e->type == CHIAKI_EVENT_TRIGGER_EFFECTS) {
+                const auto& t = e->trigger_effects;
+                std::string s = "{\"type_left\":" + std::to_string(t.type_left) +
+                                ",\"type_right\":" + std::to_string(t.type_right) + ",\"left\":[";
+                for (int i = 0; i < 10; ++i) s += (i ? "," : "") + std::to_string(t.left[i]);
+                s += "],\"right\":[";
+                for (int i = 0; i < 10; ++i) s += (i ? "," : "") + std::to_string(t.right[i]);
+                s += "]}";
+                self->feedback.onEvent("trigger_effects", s);
+                return;
+            }
+        }
         std::lock_guard lock(self->m);
         switch (e->type) {
             case CHIAKI_EVENT_CONNECTED: self->evConnected = true; break;
@@ -322,9 +349,9 @@ struct Ps5Link::Impl {
                                             CHIAKI_VIDEO_FPS_PRESET_30);
         info.video_profile.codec = CHIAKI_CODEC_H264;
         info.video_profile_auto_downgrade = true;
-        info.audio_video_disabled = CHIAKI_AUDIO_VIDEO_DISABLED;
+        info.audio_video_disabled = CHIAKI_AUDIO_DISABLED;  // keep 360p video: recorder / vehicle detector
         info.enable_keyboard = false;
-        info.enable_dualsense = false;
+        info.enable_dualsense = true;  // the game then sends adaptive-trigger effects
         info.auto_regist = false;
         info.holepunch_session = nullptr;  // LAN only
         info.rudp_sock = nullptr;
@@ -343,6 +370,7 @@ struct Ps5Link::Impl {
         if (err != CHIAKI_ERR_SUCCESS)
             return finish(LinkState::Lost, std::string("Ошибка запуска Remote Play: ") + chiaki_error_string(err));
         chiaki_session_set_event_cb(session.get(), &Impl::eventCb, this);
+        chiaki_session_set_video_sample_cb(session.get(), &Impl::videoCb, this);
         err = chiaki_session_start(session.get());
         if (err != CHIAKI_ERR_SUCCESS) {
             chiaki_session_fini(session.get());
@@ -561,4 +589,11 @@ LinkState Ps5Link::state() const { return impl_->state.load(); }
 std::optional<Pairing> Ps5Link::currentPairing() const {
     std::lock_guard lock(impl_->m);
     return impl_->pairing;
+}
+
+void Ps5Link::setFeedback(Feedback fb) { impl_->feedback = std::move(fb); }
+
+void Ps5Link::requestKeyframe() {
+    std::lock_guard lock(impl_->padMutex);
+    if (impl_->activeSession) chiaki_session_request_idr(impl_->activeSession);
 }

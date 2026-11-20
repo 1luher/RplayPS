@@ -46,6 +46,16 @@ public:
     void connect(const Pairing& pairing);  // asynchronous: find, wake if needed, connect
     void disconnect();                      // sends a neutral state first, then stops
     void submit(const PadState& pad);       // thread-safe; ignored unless Connected
+
+    // What the game sends back: the 360p H.264 video stream and controller feedback
+    // (rumble, adaptive-trigger effects) as small JSON objects. Called on chiaki threads.
+    // Set before connect(); used to record training data for the vehicle detector.
+    struct Feedback {
+        std::function<void(const std::uint8_t* data, size_t size)> onVideo;
+        std::function<void(const char* type, const std::string& json)> onEvent;
+    };
+    void setFeedback(Feedback fb);
+    void requestKeyframe();  // asks the PS5 for a fresh IDR frame (e.g. when a recording starts)
     LinkState state() const;
     std::optional<Pairing> currentPairing() const;  // host may have been updated by DHCP
 

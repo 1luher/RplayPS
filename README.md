@@ -54,6 +54,7 @@ cmake --build build --config Release
 | [docs/architecture.md](docs/architecture.md) | Как устроим программу: ввод, мышь → стик, калибровка, профили |
 | [docs/roadmap.md](docs/roadmap.md) | План по шагам и что сделать дома |
 | [docs/superpowers/plans/2026-11-20-rplayps-mvp.md](docs/superpowers/plans/2026-11-20-rplayps-mvp.md) | Подробный план первой версии (этапы 1–2) |
+| [docs/vehicle-classes.md](docs/vehicle-classes.md) | Классы транспорта и что записывать для автоопределения |
 | [docs/research.md](docs/research.md) | Обзор готовых решений |
 | [docs/keyboard-ds5.md](docs/keyboard-ds5.md) | Подробный разбор keyboard-ds5 |
 

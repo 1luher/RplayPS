@@ -30,6 +30,8 @@ constexpr const char* Link = "\xEE\x9C\x9B";       // U+E71B
 constexpr const char* Save = "\xEE\x9D\x8E";       // U+E74E
 constexpr const char* Sliders = "\xEE\xA7\xA9";    // U+E9E9
 constexpr const char* Pulse = "\xEE\xA7\x99";      // U+E9D9
+constexpr const char* Record = "\xEE\x9E\xB8";     // U+E7B8
+constexpr const char* Folder = "\xEE\xA0\xB8";     // U+E838
 }  // namespace icon
 
 struct Fonts {

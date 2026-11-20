@@ -2,6 +2,8 @@
 #include "app/ui.h"
 
 #include <imgui.h>
+#include <shellapi.h>
+#include <shlobj.h>
 
 #include <algorithm>
 #include <chrono>
@@ -489,6 +491,61 @@ void drawKeys(App& app) {
     endCard();
 }
 
+std::filesystem::path newRecordingDir() {
+    PWSTR videos = nullptr;
+    std::filesystem::path base;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Videos, 0, nullptr, &videos))) base = videos;
+    CoTaskMemFree(videos);
+    if (base.empty()) base = appDataDir();
+    SYSTEMTIME t;
+    GetLocalTime(&t);
+    wchar_t name[64];
+    swprintf_s(name, L"rec-%04u%02u%02u-%02u%02u%02u", t.wYear, t.wMonth, t.wDay, t.wHour, t.wMinute, t.wSecond);
+    return base / L"RplayPS" / name;
+}
+
+void drawRecord(App& app) {
+    const Fonts& f = app.fonts;
+    const bool on = app.recorder.recording();
+    beginCard("##rec", icon::Record, "Запись для обучения", f);
+    mutedText("Пишет видео 360p, вибрацию и триггеры от игры, чтобы научить программу саму понимать: пешком, "
+              "машина, лодка, вертолёт или самолёт. Играйте как обычно, по 3–5 минут на каждый тип.",
+              f);
+    ImGui::Dummy(ImVec2(0, 2));
+    if (!on) {
+        ImGui::BeginDisabled(app.consoleOnly);
+        const std::string label = std::string("●  Начать запись");
+        if (primaryButton(label.c_str(), -FLT_MIN)) {
+            app.recordError.clear();
+            if (app.recorder.start(newRecordingDir(), &app.recordError)) app.link->requestKeyframe();
+        }
+        ImGui::EndDisabled();
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, toVec4(withAlpha(col::Bad, 60)));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(withAlpha(col::Bad, 100)));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(withAlpha(col::Bad, 140)));
+        const std::string label = std::string("■  Остановить запись");
+        if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0))) app.recorder.stop();
+        ImGui::PopStyleColor(3);
+    }
+    const Recorder::Stats s = app.recorder.stats();
+    if (on || s.framesWritten) {
+        char line[160];
+        std::snprintf(line, sizeof(line), "%s%llu кадров · %.1f МБ · %llu событий%s", on ? "● " : "",
+                      static_cast<unsigned long long>(s.framesWritten), s.bytesWritten / 1048576.0,
+                      static_cast<unsigned long long>(s.events),
+                      on && s.framesWritten == 0 ? " · жду опорный кадр от PS5…" : "");
+        noteText(line, on ? col::Bad : col::Muted, f);
+        const std::u8string folder8 = app.recorder.directory().u8string();
+        const std::string folder(folder8.begin(), folder8.end());
+        mutedText(folder.c_str(), f);
+        if (!on && ghostButton((std::string(icon::Folder) + "  Открыть папку").c_str()))
+            ShellExecuteW(nullptr, L"open", app.recorder.directory().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    noteText(app.recordError, col::Bad, f);
+    endCard();
+}
+
 }  // namespace
 
 void loadProfile(App& app) {
@@ -548,6 +605,8 @@ void drawUi(App& app) {
         drawLive(app);
         ImGui::Dummy(ImVec2(0, 2));
         drawKeys(app);
+        ImGui::Dummy(ImVec2(0, 2));
+        drawRecord(app);
         ImGui::EndTable();
     }
     ImGui::End();
