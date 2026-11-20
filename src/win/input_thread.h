@@ -42,6 +42,7 @@ public:
     struct Callbacks {
         std::function<void(const PadState&)> onPad;  // called on the input thread
         std::function<void(CaptureEvent)> onCapture; // called on the input thread
+        std::function<void(ControlClass)> onClass;   // called on the input thread
     };
 
     InputThread(HWND mainWindow, Callbacks cb);
@@ -55,6 +56,9 @@ public:
     void setCapture(bool on, CaptureEvent reason = CaptureEvent::Released);
     bool captured() const;
     void setProfile(const Profile& p);  // any thread; applied on the input thread
+    // Which layout is active (the vehicle detector will call this). Any thread.
+    void setClass(ControlClass c);
+    ControlClass currentClass() const { return class_; }
     InputStats stats() const;
 
 private:
@@ -63,6 +67,8 @@ private:
     void applyCapture(bool on, CaptureEvent reason);
     void onRawInput(HRAWINPUT h);
     void evaluate(bool timed);
+    void applyClass(ControlClass c);
+    void rebuildPads();
     double nowMs() const;
 
     HWND main_;
@@ -78,7 +84,8 @@ private:
 
     std::mutex profileMutex_;
     Profile pendingProfile_;
-    std::unique_ptr<PadBuilder> builder_;
+    std::unique_ptr<ClassPads> builder_;
+    std::atomic<ControlClass> class_{ControlClass::Foot};
     MouseStick mouse_;
     PadState sent_;
 

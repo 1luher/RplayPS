@@ -59,10 +59,12 @@ const std::vector<std::uint8_t>& wavFor(Cue c) {
     static const std::vector<std::uint8_t> off = makeWav({{900, 70}, {600, 70}});
     static const std::vector<std::uint8_t> warn = makeWav({{300, 80}, {0, 50}, {300, 80}, {0, 50}, {300, 80}});
     static const std::vector<std::uint8_t> up = makeWav({{1000, 120}});
+    static const std::vector<std::uint8_t> blip = makeWav({{750, 45}});
     switch (c) {
         case Cue::CaptureOn: return on;
         case Cue::CaptureOff: return off;
         case Cue::LinkUp: return up;
+        case Cue::ClassChange: return blip;
         case Cue::FocusLost:
         case Cue::LinkLost: break;
     }

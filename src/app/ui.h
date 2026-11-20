@@ -19,6 +19,7 @@
 // Messages posted to the main window from worker threads.
 constexpr UINT kMsgLinkState = WM_APP + 10;  // wParam = LinkState
 constexpr UINT kMsgCapture = WM_APP + 11;    // wParam = CaptureEvent
+constexpr UINT kMsgClass = WM_APP + 12;      // wParam = ControlClass
 
 struct App {
     HWND window = nullptr;
@@ -46,6 +47,7 @@ struct App {
     char accountField[64] = "";
     char pinField[16] = "";
     std::string saveNote;
+    ControlClass editClass = ControlClass::Foot;  // which class the mouse tab edits
 
     Recorder recorder;  // training data for the vehicle detector
     std::string recordError;

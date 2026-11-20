@@ -275,6 +275,13 @@ void drawCaptureBanner(App& app) {
     ImGui::BeginGroup();
     ImGui::PushFont(f.semibold);
     ImGui::TextUnformatted(captured ? "Захват включён — управление уходит на PS5" : "Захват выключен");
+    ImGui::SameLine(0, 14);
+    {
+        const std::string mode = "Режим: " + std::string(controlClassTitleRu(app.input->currentClass()));
+        ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Accent));
+        ImGui::TextUnformatted(mode.c_str());
+        ImGui::PopStyleColor();
+    }
     ImGui::PopFont();
     mutedText(captured ? "Отпустить: F8. Если окно потеряет фокус, всё отпустится само."
                        : "Нажмите F8, затем переключите монитор на вход PS5.",
@@ -404,9 +411,25 @@ void drawPs5(App& app) {
 
 void drawMouse(App& app) {
     const Fonts& f = app.fonts;
-    MouseSettings& m = app.profile.mouse;
     bool changed = false;
     beginCard("##mouse", icon::Mouse, "Мышь", f);
+    // One tab per class: each class has its own mouse settings.
+    if (ImGui::BeginTabBar("##classes")) {
+        for (size_t i = 0; i < kControlClassCount; ++i) {
+            const auto c = static_cast<ControlClass>(i);
+            const std::string title(controlClassTitleRu(c));
+            if (ImGui::BeginTabItem(title.c_str())) {
+                app.editClass = c;
+                ImGui::EndTabItem();
+            }
+        }
+        ImGui::EndTabBar();
+    }
+    Layout& layout = app.profile.layout(app.editClass);
+    MouseSettings& m = layout.mouse;
+    mutedText(layout.mouseTarget == MouseTarget::LeftStick ? "Мышь здесь управляет наклонами (левый стик)."
+                                                           : "Мышь здесь управляет камерой (правый стик).",
+              f);
     changed |= sliderFloat("Чувствительность", "Сколько поворачивает камера при том же движении мыши",
                            &m.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
     changed |= sliderFloat("Кривая", "1 — линейно; больше — точнее на медленных движениях", &m.exponent, 0.5f, 3.0f,
@@ -419,7 +442,7 @@ void drawMouse(App& app) {
     changed |= sliderInt("Окно скорости", "Меньше — быстрее отклик, больше — плавнее", &m.windowMs, 2, 32, "%d мс");
     changed |= sliderInt("Возврат в центр", "Через сколько стик встаёт в центр, когда мышь остановилась",
                          &m.recenterMs, 2, 100, "%d мс");
-    changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &app.profile.walkScale,
+    changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &layout.walkScale,
                            0.1f, 1.0f, "%.2f");
     changed |= ImGui::Checkbox("Инвертировать ось Y", &m.invertY);
     if (changed) {
@@ -481,6 +504,7 @@ void drawKeys(App& app) {
         {"WASD", "движение"},
         {"LAlt", "шаг"},
         {"ЛКМ / ПКМ", "R2 / L2"},
+        {"F1–F5", "режим: пешком, наземный, вода, вертолёт, самолёт (временно, до автоопределения)"},
     };
     for (const Row& r : rows) {
         keycap(r.key, f.tiny);

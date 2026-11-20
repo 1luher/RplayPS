@@ -108,6 +108,9 @@ LRESULT WINAPI wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             }
             return 0;
         }
+        case kMsgClass:
+            playCue(Cue::ClassChange);
+            return 0;
         case kMsgCapture:
             if (const auto cue = cueForCapture(static_cast<CaptureEvent>(wp))) playCue(*cue);
             return 0;
@@ -169,7 +172,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     app.consoleOnly = hasArg(L"--console-only");
     const auto dir = appDataDir();
     app.pairingPath = dir / L"pairing.bin";
-    app.profilePath = dir / L"profiles" / L"gta6.json";
+    app.profilePath = dir / L"profiles" / L"gta6-classes.json";  // v2: one layout per class
     loadProfile(app);
     app.pairing = loadPairing(app.pairingPath);
 
@@ -192,7 +195,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
                                  if (!app.consoleOnly) link.submit(pad);
                                  app.recorder.onPad(sessionMs(), pad);
                              },
-                             [hwnd](CaptureEvent e) { PostMessageW(hwnd, kMsgCapture, static_cast<WPARAM>(e), 0); }});
+                             [hwnd](CaptureEvent e) { PostMessageW(hwnd, kMsgCapture, static_cast<WPARAM>(e), 0); },
+                             [hwnd](ControlClass c) { PostMessageW(hwnd, kMsgClass, static_cast<WPARAM>(c), 0); }});
     app.link = &link;
     app.input = &input;
     input.setProfile(app.profile);
