@@ -28,16 +28,16 @@ GTA 6). Нужен только компьютер с Windows в той же д�
 ## Документы
 | Файл | О чём |
 |---|---|
-| [docs/research.md](docs/research.md) | Какие решения уже есть: программы, chiaki-ng, железо, SmoovPlay |
-| [docs/keyboard-ds5.md](docs/keyboard-ds5.md) | Разбор кода keyboard-ds5, нашей основы |
-| [docs/architecture.md](docs/architecture.md) | Как устроим программу: ввод, кривая, калибровка, профили |
-| [docs/roadmap.md](docs/roadmap.md) | План по шагам и что сделать дома (Python, PS5) |
+| [docs/best-of.md](docs/best-of.md) | Что берём из других проектов и почему |
+| [docs/architecture.md](docs/architecture.md) | Как устроим программу: ввод, мышь → стик, калибровка, профили |
+| [docs/roadmap.md](docs/roadmap.md) | План по шагам и что сделать дома |
+| [docs/research.md](docs/research.md) | Обзор готовых решений |
+| [docs/keyboard-ds5.md](docs/keyboard-ds5.md) | Подробный разбор keyboard-ds5 |
 
 ## Основа
-Скорее всего, сделаем форк [keyboard-ds5](https://github.com/tejasbnshetty/keyboard-ds5)
-(Python, AGPL-3.0). Он уже умеет управлять PS5 по Remote Play без видео. Мы добавим
-то, чего в нём нет: прямое чтение мыши, калибровку и профили.
-Если форк, то **лицензия тоже AGPL-3.0**: этого требует лицензия исходного проекта.
+Свой код. Для связи с PS5 используем сетевое ядро [chiaki-ng](https://github.com/chiaki-ng/chiaki-ng):
+его активно поддерживают и чинят после обновлений прошивки PS5. Поэтому лицензия проекта —
+**AGPL-3.0**.
 
 ## Предупреждение
 Это неофициальный проект, он не связан с Sony или Rockstar. Неофициальный клиент Remote Play
