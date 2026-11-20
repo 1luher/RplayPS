@@ -53,8 +53,8 @@ struct App {
     Page page = Page::Home;                         // sidebar section
     bool mouseDirty = false;                        // save once the slider is released
 
-    // Key binding editor: waiting for a key for (keysSection, bindAction, bindSlot).
-    int keysSection = 0;  // which game control-scheme screen is shown (ui.cpp kSchemes)
+    // Key binding editor: waiting for a key for (keysClass, bindAction, bindSlot).
+    ControlClass keysClass = ControlClass::Foot;
     bool bindWaiting = false;
     Action bindAction = Action::Cross;
     int bindSlot = 0;

@@ -5,7 +5,6 @@
 #include <d3d11.h>
 #include <shellapi.h>
 
-#include <algorithm>
 #include <chrono>
 
 #include <imgui.h>
@@ -177,8 +176,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
                    nullptr, L"RPlay K&M", icon};
     RegisterClassExW(&wc);
     const float dpi = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY));
-    HWND hwnd = CreateWindowW(wc.lpszClassName, L"RPlay K&M", WS_OVERLAPPEDWINDOW, 40, 20,
-                              std::min(static_cast<int>(1520 * dpi), GetSystemMetrics(SM_CXSCREEN) - 80),
+    HWND hwnd = CreateWindowW(wc.lpszClassName, L"RPlay K&M", WS_OVERLAPPEDWINDOW, 80, 20, static_cast<int>(1180 * dpi),
                               static_cast<int>(990 * dpi), nullptr, nullptr, inst, nullptr);
     styleTitleBar(hwnd);
     if (!createDevice(hwnd)) {

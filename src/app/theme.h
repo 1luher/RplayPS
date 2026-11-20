@@ -5,22 +5,17 @@
 
 #include <imgui.h>
 
-// Palette (sRGB), taken from the GTA 6 settings menu: violet -> magenta background with palm
-// silhouettes, white text, a pink selection dot. Cards are translucent so the palms show through.
+// Palette (sRGB). One dark theme, one accent.
 namespace col {
-constexpr ImU32 Bg = IM_COL32(88, 42, 186, 255);       // background corners: top left (violet),
-constexpr ImU32 BgBlue = IM_COL32(64, 126, 224, 255);  // top right (blue),
-constexpr ImU32 BgPink = IM_COL32(222, 98, 186, 255);  // bottom right (pink),
-constexpr ImU32 BgLow = IM_COL32(126, 50, 196, 255);   // bottom left
-constexpr ImU32 Palm = IM_COL32(74, 30, 128, 255);     // palm silhouettes (opaque: leaflets overlap)
-constexpr ImU32 Card = IM_COL32(30, 12, 64, 190);
-constexpr ImU32 CardHi = IM_COL32(56, 24, 104, 215);
-constexpr ImU32 Well = IM_COL32(18, 6, 40, 170);      // sunken areas: stick views, bars, tiles
-constexpr ImU32 Line = IM_COL32(255, 255, 255, 40);
-constexpr ImU32 Text = IM_COL32(255, 255, 255, 255);
-constexpr ImU32 Muted = IM_COL32(208, 192, 236, 255);
-constexpr ImU32 Accent = IM_COL32(255, 112, 214, 255);  // the game's pink selection dot
-constexpr ImU32 AccentSoft = IM_COL32(255, 112, 214, 40);
+constexpr ImU32 Bg = IM_COL32(9, 9, 12, 255);
+constexpr ImU32 Card = IM_COL32(19, 19, 24, 255);
+constexpr ImU32 CardHi = IM_COL32(28, 28, 35, 255);
+constexpr ImU32 Line = IM_COL32(38, 38, 47, 255);
+constexpr ImU32 Text = IM_COL32(236, 236, 241, 255);
+constexpr ImU32 Muted = IM_COL32(140, 140, 155, 255);
+constexpr ImU32 Accent = IM_COL32(255, 86, 136, 255);   // Vice-sunset pink: the only accent
+constexpr ImU32 Accent2 = IM_COL32(255, 160, 72, 255);  // sunset orange: header gradient only
+constexpr ImU32 AccentSoft = IM_COL32(255, 86, 136, 34);
 constexpr ImU32 Good = IM_COL32(52, 211, 153, 255);
 constexpr ImU32 Warn = IM_COL32(251, 191, 36, 255);
 constexpr ImU32 Bad = IM_COL32(248, 113, 113, 255);
@@ -54,9 +49,5 @@ struct Fonts {
 Fonts applyTheme(float dpi);
 // Dark title bar in the theme colour (Windows 11; harmless elsewhere).
 void styleTitleBar(HWND hwnd);
-// Window background: the menu gradient with palm silhouettes in the lower right.
-void drawBackdrop(ImDrawList* dl, ImVec2 pos, ImVec2 size);
-// The app logo (assets/logo.svg): "Rp" on a dark tile, size x size pixels at pos.
-void drawLogo(ImDrawList* dl, ImVec2 pos, float size);
 
 ImVec4 toVec4(ImU32 c);
