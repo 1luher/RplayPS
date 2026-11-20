@@ -56,9 +56,10 @@ std::optional<InputCode> parseInputCode(std::string_view name) {
         if (ch >= 'a' && ch <= 'z') return static_cast<InputCode>(ch - 'a' + 'A');
         return std::nullopt;
     }
-    if (name.size() >= 2 && name[0] == 'F' &&
+    if ((name.size() == 2 || name.size() == 3) && name[0] == 'F' &&
         std::all_of(name.begin() + 1, name.end(), [](char c) { return c >= '0' && c <= '9'; })) {
-        const int n = std::stoi(std::string(name.substr(1)));
+        int n = 0;  // at most two digits: no overflow, no exceptions
+        for (char c : name.substr(1)) n = n * 10 + (c - '0');
         if (n < 1 || n > 12 || n == 8) return std::nullopt;  // F8 toggles capture
         return static_cast<InputCode>(vk::F1 + n - 1);
     }

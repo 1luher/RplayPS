@@ -91,14 +91,14 @@ int main(int argc, char** argv) {
             std::printf("%s\n", error.c_str());
             return 1;
         }
-        const std::string pinText = argv[4];
-        if (pinText.size() != 8 || pinText.find_first_not_of("0123456789") != std::string::npos) {
+        const auto pin = parsePin(argv[4]);
+        if (!pin) {
             std::puts("PIN — это 8 цифр с экрана PS5.");
             return 1;
         }
         Ps5Link link(nullptr);
         std::puts("Привязываю…");
-        auto pairing = link.pair(argv[2], *account, static_cast<std::uint32_t>(std::stoul(pinText)), &error);
+        auto pairing = link.pair(argv[2], *account, *pin, &error);
         if (!pairing) {
             std::printf("%s\n", error.c_str());
             return 1;

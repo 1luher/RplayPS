@@ -2,6 +2,7 @@
 // Based on PS5-DirectView (AGPL-3.0), https://github.com/babymonie/PS5-DirectView
 // (src/RemotePlayClient.cpp: discovery, pairing, wake-up and input-only session).
 #include "ps5/link.h"
+#include "ps5/liveness.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -348,7 +349,7 @@ struct Ps5Link::Impl {
             return finish(LinkState::Lost, std::string("Ошибка запуска Remote Play: ") + chiaki_error_string(err));
         }
 
-        bool connected = false, userStop = false;
+        bool connected = false, userStop = false, silentDrop = false, wentToSleep = false;
         {
             std::unique_lock lock(m);
             cv.wait_for(lock, std::chrono::seconds(40),
@@ -363,8 +364,27 @@ struct Ps5Link::Impl {
             }
             sendNeutral();  // never resume buttons held before a reconnect
             setState(LinkState::Connected, "Подключено к " + (p.name.empty() ? std::string("PS5") : p.name) + ".");
-            std::unique_lock lock(m);
-            cv.wait(lock, [&] { return stopping || evQuit || evLoginPin || !wantConnected; });
+            // chiaki-ng never notices a silently dead peer on the LAN, so probe the console.
+            Liveness live;
+            for (;;) {
+                {
+                    std::unique_lock lock(m);
+                    if (cv.wait_for(lock, std::chrono::seconds(2),
+                                    [&] { return stopping || evQuit || evLoginPin || !wantConnected; }))
+                        break;
+                }
+                const auto seen = probe(p.host, 1000, [](const std::vector<FoundConsole>& v) { return !v.empty(); }, true);
+                if (seen.empty())
+                    live.missed();
+                else
+                    live.replied(seen.front().ready);
+                if (live.dead()) {
+                    silentDrop = true;
+                    wentToSleep = !seen.empty();
+                    break;
+                }
+            }
+            std::lock_guard lock(m);
             userStop = stopping || !wantConnected;
         }
 
@@ -391,6 +411,10 @@ struct Ps5Link::Impl {
         chiaki_session_fini(session.get());
 
         if (userStop) return finish(LinkState::Idle, "Отключено.");
+        if (silentDrop && !quit)
+            return finish(LinkState::Lost, wentToSleep ? "PS5 ушла в режим покоя."
+                                                       : "PS5 перестала отвечать (сеть или питание). Нажмите F8, "
+                                                         "чтобы подключиться снова.");
         if (loginPin)
             return finish(LinkState::Lost,
                           "У пользователя PS5 включён код входа. Отключите его: Настройки → Пользователи и учётные "

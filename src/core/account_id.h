@@ -14,3 +14,6 @@ using AccountId = std::array<std::uint8_t, 8>;
 // On failure returns nullopt and, if error is given, a message in Russian.
 std::optional<AccountId> parseAccountId(std::string_view text, std::string* error);
 std::string accountIdToBase64(const AccountId& id);
+
+// The 8-digit pairing PIN shown on the PS5 (surrounding spaces allowed). Anything else -> nullopt.
+std::optional<std::uint32_t> parsePin(std::string_view text);

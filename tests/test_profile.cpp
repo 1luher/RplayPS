@@ -93,3 +93,11 @@ TEST_CASE("more_than_two_keys_keeps_first_two") {
     CHECK(slot(*p, Action::Cross, 1) == 'B');
     CHECK(w.size() == 1);
 }
+
+TEST_CASE("profile_with_huge_function_key_loads") {
+    std::vector<std::string> w;
+    std::optional<Profile> p;
+    CHECK_NOTHROW(p = profileFromJson(R"({"bindings":{"cross":["F99999999999","Space"]}})", &w));
+    REQUIRE(p);
+    CHECK(slot(*p, Action::Cross) == vk::Space);
+}

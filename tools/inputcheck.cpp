@@ -56,9 +56,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int show) {
     ShowWindow(hwnd, show);
 
     InputThread input(hwnd, {nullptr, [](CaptureEvent e) {
-                                 playCue(e == CaptureEvent::Captured   ? Cue::CaptureOn
-                                         : e == CaptureEvent::Released ? Cue::CaptureOff
-                                                                       : Cue::FocusLost);
+                                 if (const auto cue = cueForCapture(e)) playCue(*cue);
                              }});
     input.setProfile(defaultGtaProfile());
     input.start();

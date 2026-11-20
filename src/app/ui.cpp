@@ -100,17 +100,19 @@ void drawPs5(App& app) {
     if (!pairingBusy && ImGui::Button("Привязать")) {
         std::string error;
         const auto account = parseAccountId(app.accountField, &error);
-        const std::string pin = app.pinField;
+        const auto pin = parsePin(app.pinField);
+        std::string host = app.hostField;
+        host.erase(0, host.find_first_not_of(" \t"));
+        host.erase(host.find_last_not_of(" \t") + 1);
         if (!account) {
             app.pairError = error;
-        } else if (pin.size() != 8) {
+        } else if (!pin) {
             app.pairError = "PIN — это 8 цифр с экрана PS5.";
         } else {
             app.pairError.clear();
             Ps5Link* link = app.link;
-            const std::string host = app.hostField;
             const AccountId acc = *account;
-            const auto pinValue = static_cast<std::uint32_t>(std::stoul(pin));
+            const std::uint32_t pinValue = *pin;
             app.pairing_job = std::async(std::launch::async, [link, host, acc, pinValue] {
                 std::string e;
                 auto p = link->pair(host, acc, pinValue, &e);

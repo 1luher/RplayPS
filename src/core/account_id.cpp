@@ -94,3 +94,12 @@ std::string accountIdToBase64(const AccountId& id) {
     out += '=';
     return out;
 }
+
+std::optional<std::uint32_t> parsePin(std::string_view text) {
+    text = trim(text);
+    if (text.size() != 8 || !std::all_of(text.begin(), text.end(), [](char c) { return c >= '0' && c <= '9'; }))
+        return std::nullopt;
+    std::uint32_t value = 0;
+    for (char c : text) value = value * 10 + static_cast<std::uint32_t>(c - '0');
+    return value;
+}

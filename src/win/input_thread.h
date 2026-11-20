@@ -8,14 +8,25 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 
 #include "core/bindings.h"
 #include "core/mouse_stick.h"
 #include "core/pad.h"
 #include "core/profile.h"
+#include "win/sound.h"
 
-enum class CaptureEvent { Captured, Released, FocusLost };
+// LinkLost: released because the PS5 link dropped (its own alarm is already playing).
+enum class CaptureEvent { Captured, Released, FocusLost, LinkLost };
+
+// Which cue a capture change plays (none for LinkLost).
+std::optional<Cue> cueForCapture(CaptureEvent e);
+
+// STICKYKEYS flags to use while captured: the "press Shift 5 times" hotkey is switched off so
+// tap-sprinting on Shift cannot pop up a dialog on the (invisible) PC screen. Left alone if the
+// user has Sticky Keys turned on. Same pattern as Microsoft's "Disabling Shortcut Keys in Games".
+DWORD stickyKeysFlagsWhileCaptured(DWORD original);
 
 struct InputStats {
     double mouseHz = 0;       // raw mouse reports per second
@@ -40,7 +51,8 @@ public:
 
     void start();
     void stop();
-    void setCapture(bool on);           // any thread
+    // Any thread. When releasing, `reason` is what onCapture reports (Released or LinkLost).
+    void setCapture(bool on, CaptureEvent reason = CaptureEvent::Released);
     bool captured() const;
     void setProfile(const Profile& p);  // any thread; applied on the input thread
     InputStats stats() const;
@@ -75,4 +87,7 @@ private:
     unsigned mouseEvents_ = 0, tickSamples_ = 0;
     double jitterSum_ = 0, lastTickMs_ = 0;
     ULONGLONG statsWindowStart_ = 0;
+
+    STICKYKEYS savedStickyKeys_{sizeof(STICKYKEYS), 0};
+    bool stickyKeysChanged_ = false;
 };

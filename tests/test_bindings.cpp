@@ -143,3 +143,10 @@ TEST_CASE("raw_fake_keys_are_dropped") {
     CHECK(inputCodeFromRawKey(0, 0, false) == code::None);
     CHECK(inputCodeFromRawKey(0x1FF, 0, false) == code::None);
 }
+
+TEST_CASE("huge_function_key_number_does_not_throw") {
+    CHECK_NOTHROW(parseInputCode("F99999999999"));
+    CHECK_FALSE(parseInputCode("F99999999999"));
+    CHECK_FALSE(parseInputCode("F13"));
+    CHECK(parseInputCode("F12") == vk::F12);
+}

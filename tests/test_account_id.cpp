@@ -40,3 +40,14 @@ TEST_CASE("account_id_garbage_gives_error") {
     CHECK_FALSE(parseAccountId("99999999999999999999999", &e));  // > uint64
     CHECK_FALSE(e.empty());
 }
+
+TEST_CASE("pin_accepts_exactly_eight_digits") {
+    CHECK(parsePin("12345678") == 12345678u);
+    CHECK(parsePin(" 00001234 ") == 1234u);
+    CHECK_FALSE(parsePin("--------"));
+    CHECK_FALSE(parsePin("........"));
+    CHECK_FALSE(parsePin("1234.567"));
+    CHECK_FALSE(parsePin("1234567"));
+    CHECK_FALSE(parsePin("123456789"));
+    CHECK_FALSE(parsePin(""));
+}

@@ -102,17 +102,13 @@ LRESULT WINAPI wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 }
             } else if (s == LinkState::Lost) {
                 playCue(Cue::LinkLost);
-                g_app->input->setCapture(false);
+                g_app->input->setCapture(false, CaptureEvent::LinkLost);  // no second cue over the alarm
             }
             return 0;
         }
-        case kMsgCapture: {
-            const auto e = static_cast<CaptureEvent>(wp);
-            playCue(e == CaptureEvent::Captured ? Cue::CaptureOn
-                    : e == CaptureEvent::Released ? Cue::CaptureOff
-                                                  : Cue::FocusLost);
+        case kMsgCapture:
+            if (const auto cue = cueForCapture(static_cast<CaptureEvent>(wp))) playCue(*cue);
             return 0;
-        }
         case WM_SYSCOMMAND:
             if ((wp & 0xfff0) == SC_KEYMENU) return 0;  // Alt is a game key: no window menu
             break;

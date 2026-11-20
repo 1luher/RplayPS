@@ -12,6 +12,21 @@ constexpr UINT kMsgQuit = WM_APP + 3;
 constexpr unsigned kVkF8 = 0x77;
 }  // namespace
 
+std::optional<Cue> cueForCapture(CaptureEvent e) {
+    switch (e) {
+        case CaptureEvent::Captured: return Cue::CaptureOn;
+        case CaptureEvent::Released: return Cue::CaptureOff;
+        case CaptureEvent::FocusLost: return Cue::FocusLost;
+        case CaptureEvent::LinkLost: break;
+    }
+    return std::nullopt;
+}
+
+DWORD stickyKeysFlagsWhileCaptured(DWORD original) {
+    if (original & SKF_STICKYKEYSON) return original;  // the user relies on Sticky Keys: leave them
+    return original & ~(SKF_HOTKEYACTIVE | SKF_CONFIRMHOTKEY);
+}
+
 InputThread::InputThread(HWND mainWindow, Callbacks cb)
     : main_(mainWindow), cb_(std::move(cb)), builder_(std::make_unique<PadBuilder>(Bindings{}, 0.5f)) {
     LARGE_INTEGER f;
@@ -44,8 +59,8 @@ void InputThread::stop() {
     }
 }
 
-void InputThread::setCapture(bool on) {
-    if (window_) PostMessageW(window_, kMsgCapture, on ? 1 : 0, 0);
+void InputThread::setCapture(bool on, CaptureEvent reason) {
+    if (window_) PostMessageW(window_, kMsgCapture, on ? 1 : 0, static_cast<LPARAM>(reason));
 }
 
 bool InputThread::captured() const { return captured_; }
@@ -134,7 +149,8 @@ LRESULT CALLBACK InputThread::wndProc(HWND hwnd, UINT message, WPARAM wparam, LP
                 break;  // DefWindowProc performs raw-input cleanup
             case kMsgCapture:
                 if ((wparam != 0) != self->active_)
-                    self->applyCapture(wparam != 0, wparam ? CaptureEvent::Captured : CaptureEvent::Released);
+                    self->applyCapture(wparam != 0,
+                                       wparam ? CaptureEvent::Captured : static_cast<CaptureEvent>(lparam));
                 return 0;
             case kMsgProfile: {
                 std::lock_guard lock(self->profileMutex_);
@@ -175,6 +191,13 @@ void InputThread::applyCapture(bool on, CaptureEvent reason) {
             RECT clip{cx, cy, cx + 1, cy + 1};
             ClipCursor(&clip);
         }
+        savedStickyKeys_ = {sizeof(STICKYKEYS), 0};
+        if (SystemParametersInfoW(SPI_GETSTICKYKEYS, sizeof(STICKYKEYS), &savedStickyKeys_, 0)) {
+            STICKYKEYS during = savedStickyKeys_;
+            during.dwFlags = stickyKeysFlagsWhileCaptured(savedStickyKeys_.dwFlags);
+            if (during.dwFlags != savedStickyKeys_.dwFlags)
+                stickyKeysChanged_ = SystemParametersInfoW(SPI_SETSTICKYKEYS, sizeof(STICKYKEYS), &during, 0) != FALSE;
+        }
         active_ = true;
         captured_ = true;
         LARGE_INTEGER due;
@@ -192,6 +215,10 @@ void InputThread::applyCapture(bool on, CaptureEvent reason) {
     RegisterRawInputDevices(devices, 2, sizeof(RAWINPUTDEVICE));
     if (timer_) CancelWaitableTimer(timer_);
     ClipCursor(nullptr);
+    if (stickyKeysChanged_) {  // restore the user's own Sticky Keys setting
+        SystemParametersInfoW(SPI_SETSTICKYKEYS, sizeof(STICKYKEYS), &savedStickyKeys_, 0);
+        stickyKeysChanged_ = false;
+    }
     active_ = false;
     captured_ = false;
     builder_->releaseAll();
