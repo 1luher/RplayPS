@@ -172,12 +172,13 @@ bool hasArg(const wchar_t* name) {
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     ImGui_ImplWin32_EnableDpiAwareness();
-    WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, wndProc, 0, 0, inst, nullptr, LoadCursorW(nullptr, IDC_ARROW), nullptr,
-                   nullptr, L"RPlay K&M", nullptr};
+    const HICON icon = LoadIconW(inst, MAKEINTRESOURCEW(1));  // src/app/rplaykm.rc
+    WNDCLASSEXW wc{sizeof(wc), CS_CLASSDC, wndProc, 0, 0, inst, icon, LoadCursorW(nullptr, IDC_ARROW), nullptr,
+                   nullptr, L"RPlay K&M", icon};
     RegisterClassExW(&wc);
     const float dpi = ImGui_ImplWin32_GetDpiScaleForMonitor(MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY));
     HWND hwnd = CreateWindowW(wc.lpszClassName, L"RPlay K&M", WS_OVERLAPPEDWINDOW, 40, 20,
-                              std::min(static_cast<int>(1400 * dpi), GetSystemMetrics(SM_CXSCREEN) - 80),
+                              std::min(static_cast<int>(1520 * dpi), GetSystemMetrics(SM_CXSCREEN) - 80),
                               static_cast<int>(990 * dpi), nullptr, nullptr, inst, nullptr);
     styleTitleBar(hwnd);
     if (!createDevice(hwnd)) {

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="240" height="240">
+  <!-- RPlay K&M logo: "Rp" on a dark tile, blue-violet-pink gradient, pink outline. -->
+  <defs>
+    <linearGradient id="ink" gradientUnits="userSpaceOnUse" x1="0" y1="20" x2="0" y2="104">
+      <stop offset="0" stop-color="#3FA6F0"/><stop offset="0.45" stop-color="#9A4DE6"/>
+      <stop offset="0.85" stop-color="#FF6FC8"/><stop offset="1" stop-color="#FFA2B8"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="112" height="112" rx="26" fill="#1C0C3E"/>
+  <path transform="translate(-2 -6)" fill-rule="evenodd" fill="url(#ink)" stroke="#FF6FC8" stroke-width="3"
+        stroke-linejoin="round" paint-order="stroke"
+        d="M14 24 H44 C57 24 65 32 65 44 V47 C65 55 61 60 55 63 L67 92 H48 L39 68 H33 V92 H14 Z
+           M33 40 H42 C45.5 40 47 42 47 45 V47 C47 50 45.5 52 42 52 H33 Z
+           M72 46 H96 C104.5 46 110 51.5 110 60 V78 C110 86.5 104.5 92 96 92 H88 V108 H72 Z
+           M88 60 H91.5 C93 60 94 61 94 62.5 V75.5 C94 77 93 78 91.5 78 H88 Z"/>
+</svg>

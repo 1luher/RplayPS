@@ -252,11 +252,17 @@ void drawHeader(App& app) {
         std::lock_guard lock(app.statusMutex);
         state = app.linkState;
     }
+    constexpr float kLogo = 44;
+    const ImVec2 start = ImGui::GetCursorPos();
+    drawLogo(ImGui::GetWindowDrawList(), ImGui::GetCursorScreenPos(), kLogo);
+    ImGui::Dummy(ImVec2(kLogo, kLogo));
+    ImGui::SameLine(0, 12);
     ImGui::PushFont(f.title);
+    ImGui::SetCursorPosY(start.y + (kLogo - ImGui::GetTextLineHeight()) * 0.5f);
     ImGui::TextUnformatted("RPlay K&M");
     ImGui::PopFont();
     ImGui::SameLine();
-    ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
+    ImGui::SetCursorPosY(start.y + kLogo * 0.5f - 6);
     mutedText("клавиатура и мышь для GTA 6 на PS5", f);
 
     // Right side: link state pill.
@@ -794,47 +800,79 @@ void padGlyph(ImDrawList* dl, ImVec2 c, Action a, const Fonts& f) {
     }
 }
 
-// A white DualSense, as in the middle of the game's screen. s = 1: 300 x 194 px, c = body centre.
+// Line-art DualSense (outlines only), as on console control-scheme screens.
+// s = 1: about 300 x 210 px; c = body centre. Leader lines point at padAnchor().
 void drawDualSense(ImDrawList* dl, ImVec2 c, float s) {
     const auto P = [&](float x, float y) { return ImVec2(c.x + x * s, c.y + y * s); };
-    const ImU32 body = IM_COL32(246, 246, 250, 255), shade = IM_COL32(206, 206, 218, 255);
-    const ImU32 black = IM_COL32(28, 26, 36, 255);
-    const auto outline = [&](float ox, float oy) {
-        const auto Q = [&](float x, float y) { return P(x + ox, y + oy); };
-        dl->PathClear();
-        dl->PathLineTo(Q(60, -78));
-        dl->PathBezierCubicCurveTo(Q(110, -80), Q(128, -60), Q(136, -30));
-        dl->PathBezierCubicCurveTo(Q(150, 20), Q(162, 80), Q(140, 98));
-        dl->PathBezierCubicCurveTo(Q(122, 112), Q(100, 100), Q(90, 80));
-        dl->PathBezierCubicCurveTo(Q(78, 55), Q(60, 42), Q(0, 44));
-        dl->PathBezierCubicCurveTo(Q(-60, 42), Q(-78, 55), Q(-90, 80));
-        dl->PathBezierCubicCurveTo(Q(-100, 100), Q(-122, 112), Q(-140, 98));
-        dl->PathBezierCubicCurveTo(Q(-162, 80), Q(-150, 20), Q(-136, -30));
-        dl->PathBezierCubicCurveTo(Q(-128, -60), Q(-110, -80), Q(-60, -78));
+    const ImU32 ink = withAlpha(col::Text, 225);
+    const float t = std::max(1.2f, 1.6f * s);
+    const auto body = [&] {
+        dl->PathLineTo(P(60, -78));
+        dl->PathBezierCubicCurveTo(P(110, -80), P(128, -60), P(136, -30));
+        dl->PathBezierCubicCurveTo(P(150, 20), P(162, 80), P(140, 98));
+        dl->PathBezierCubicCurveTo(P(122, 112), P(100, 100), P(90, 80));
+        dl->PathBezierCubicCurveTo(P(78, 55), P(60, 42), P(0, 44));
+        dl->PathBezierCubicCurveTo(P(-60, 42), P(-78, 55), P(-90, 80));
+        dl->PathBezierCubicCurveTo(P(-100, 100), P(-122, 112), P(-140, 98));
+        dl->PathBezierCubicCurveTo(P(-162, 80), P(-150, 20), P(-136, -30));
+        dl->PathBezierCubicCurveTo(P(-128, -60), P(-110, -80), P(-60, -78));
     };
-    dl->AddRectFilled(P(-118, -86), P(-72, -74), shade, 4 * s);  // L1 / R1 peek out above the body
-    dl->AddRectFilled(P(72, -86), P(118, -74), shade, 4 * s);
-    outline(4, 8);
-    dl->PathFillConcave(IM_COL32(30, 0, 60, 90));  // soft shadow
-    outline(0, 0);
-    dl->PathFillConcave(body);
-    dl->AddRectFilled(P(-46, -76), P(46, -22), IM_COL32(238, 238, 244, 255), 10 * s);  // touchpad
-    dl->AddRect(P(-46, -76), P(46, -22), shade, 10 * s, 0, 1.5f);
-    dl->AddLine(P(-50, -70), P(-56, -26), IM_COL32(70, 120, 255, 255), 2.5f * s);  // light bars
-    dl->AddLine(P(50, -70), P(56, -26), IM_COL32(70, 120, 255, 255), 2.5f * s);
-    dl->AddRectFilled(P(-62, -10), P(62, 40), black, 26 * s);  // black centre with the sticks
-    for (float x : {-36.0f, 36.0f}) {
-        dl->AddCircleFilled(P(x, 14), 17 * s, IM_COL32(16, 14, 22, 255), 32);
-        dl->AddCircle(P(x, 14), 12 * s, IM_COL32(64, 62, 76, 255), 32, 2 * s);
+    for (float m : {-1.0f, 1.0f}) {  // triggers (L2/R2) behind bumpers (L1/R1)
+        dl->AddRect(P(m < 0 ? -120 : 76, -102), P(m < 0 ? -76 : 120, -88), ink, 7 * s, 0, t);
+        dl->AddRect(P(m < 0 ? -122 : 72, -88), P(m < 0 ? -72 : 122, -77), ink, 4 * s, 0, t);
     }
-    dl->AddCircleFilled(P(0, 30), 4 * s, IM_COL32(96, 94, 108, 255), 16);  // PS button
-    dl->AddRectFilled(P(-60, -74), P(-55, -62), shade, 2 * s);             // Create / Options
-    dl->AddRectFilled(P(55, -74), P(60, -62), shade, 2 * s);
-    const ImVec2 arms[4][2] = {{{-97, -57}, {-87, -45}}, {{-97, -31}, {-87, -19}}, {{-111, -43}, {-99, -33}},
-                               {{-85, -43}, {-73, -33}}};
-    for (const auto& arm : arms) dl->AddRect(P(arm[0].x, arm[0].y), P(arm[1].x, arm[1].y), shade, 2 * s, 0, 1.5f);
-    for (const ImVec2 b : {ImVec2(92, -52), ImVec2(92, -24), ImVec2(78, -38), ImVec2(106, -38)})
-        dl->AddCircle(P(b.x, b.y), 7.5f * s, shade, 20, 1.5f);
+    body();
+    dl->PathFillConcave(withAlpha(col::Well, 120));
+    body();
+    dl->PathStroke(ink, ImDrawFlags_Closed, t);
+    dl->AddRect(P(-46, -76), P(46, -22), ink, 10 * s, 0, t);  // touchpad
+    for (float m : {-1.0f, 1.0f})                               // Create / Options
+        dl->AddRect(P(m * 58 - 2.5f, -72), P(m * 58 + 2.5f, -62), ink, 2 * s, 0, t);
+    for (int i = -2; i <= 2; ++i) dl->AddCircleFilled(P(i * 5.0f, -14), 1.2f * s + 0.4f, ink, 8);  // speaker
+    dl->AddCircle(P(0, 30), 5 * s, ink, 16, t);                                                     // PS button
+    const ImVec2 arms[4][2] = {{{-97, -58}, {-87, -45}}, {{-97, -31}, {-87, -18}}, {{-112, -43}, {-99, -33}},
+                               {{-85, -43}, {-72, -33}}};
+    for (const auto& arm : arms) dl->AddRect(P(arm[0].x, arm[0].y), P(arm[1].x, arm[1].y), ink, 2.5f * s, 0, t);
+    const float b = 8.5f * s, g = 3.6f * s;
+    const ImVec2 tri = P(92, -52), cir = P(106, -38), cro = P(92, -24), sq = P(78, -38);
+    for (const ImVec2 p : {tri, cir, cro, sq}) dl->AddCircle(p, b, ink, 24, t);
+    dl->AddTriangle(ImVec2(tri.x, tri.y - g), ImVec2(tri.x - g, tri.y + g * 0.75f), ImVec2(tri.x + g, tri.y + g * 0.75f),
+                    ink, t * 0.8f);
+    dl->AddCircle(cir, g, ink, 16, t * 0.8f);
+    dl->AddLine(ImVec2(cro.x - g, cro.y - g), ImVec2(cro.x + g, cro.y + g), ink, t * 0.8f);
+    dl->AddLine(ImVec2(cro.x - g, cro.y + g), ImVec2(cro.x + g, cro.y - g), ink, t * 0.8f);
+    dl->AddRect(ImVec2(sq.x - g, sq.y - g), ImVec2(sq.x + g, sq.y + g), ink, 0, 0, t * 0.8f);
+    for (float x : {-36.0f, 36.0f}) {  // sticks
+        dl->AddCircle(P(x, 14), 19 * s, ink, 40, t);
+        dl->AddCircle(P(x, 14), 12 * s, ink, 32, t);
+    }
+}
+
+// Where a button sits on drawDualSense's controller (same local units); false = nowhere (our modifiers).
+bool padAnchor(Action a, ImVec2* at) {
+    switch (a) {
+        case Action::Touchpad: *at = {0, -50}; return true;
+        case Action::Options: *at = {58, -67}; return true;
+        case Action::Create: *at = {-58, -67}; return true;
+        case Action::L1: *at = {-97, -82}; return true;
+        case Action::R1: *at = {97, -82}; return true;
+        case Action::L2: *at = {-98, -95}; return true;
+        case Action::R2: *at = {98, -95}; return true;
+        case Action::DpadUp: *at = {-92, -51}; return true;
+        case Action::DpadDown: *at = {-92, -25}; return true;
+        case Action::DpadLeft: *at = {-105, -38}; return true;
+        case Action::DpadRight: *at = {-79, -38}; return true;
+        case Action::Triangle: *at = {92, -52}; return true;
+        case Action::Circle: *at = {106, -38}; return true;
+        case Action::Cross: *at = {92, -24}; return true;
+        case Action::Square: *at = {78, -38}; return true;
+        case Action::L3:
+        case kLeftStick: *at = {-36, 14}; return true;
+        case Action::R3:
+        case kRightStick: *at = {36, 14}; return true;
+        case Action::PS: *at = {0, 30}; return true;
+        default: return false;
+    }
 }
 
 void startBinding(App& app, Action a, int slot) {
@@ -890,37 +928,61 @@ void rowKeys(App& app, Action a, float width) {
     }
 }
 
-// One label: on the left side right-aligned towards the controller, on the right side mirrored;
-// our keys sit on the outer edge.
-void schemeRow(App& app, Action a, const char* text, bool leftSide) {
-    const Fonts& f = app.fonts;
-    const float w = ImGui::GetContentRegionAvail().x, h = 36, chipW = 128, glyphGap = 18;
-    const ImVec2 p = ImGui::GetCursorScreenPos();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const float gx = leftSide ? p.x + w - 14 : p.x + 14;
-    padGlyph(dl, ImVec2(gx, p.y + h * 0.5f), a, f);
+// One label beside the controller. Our key sits on the outer edge, the button icon next to the
+// controller, and a leader line runs from the icon to the button on the drawing.
+struct PlacedRow {
+    Action a;
+    const char* text;
+    float h = 0;        // row height (long labels wrap to two lines in the small font)
+    bool small = false;
+    bool anchored = false;
+    ImVec2 anchor;      // controller-local units, see padAnchor()
+};
 
-    const float room = w - chipW - 28 - glyphGap - 12;
-    ImFont* font = f.semibold;
-    ImGui::PushFont(font);
-    if (ImGui::CalcTextSize(text).x > room) {
-        ImGui::PopFont();
-        font = f.tiny;
-        ImGui::PushFont(font);
-    }
-    const ImVec2 ts = ImGui::CalcTextSize(text);
-    const float tx = leftSide ? gx - glyphGap - std::min(ts.x, room) : gx + glyphGap;
-    const ImVec4 clip(leftSide ? p.x + chipW + 8 : p.x, p.y, leftSide ? p.x + w : p.x + w - chipW - 8, p.y + h);
-    dl->AddText(font, ImGui::GetFontSize(), ImVec2(tx, p.y + (h - ts.y) * 0.5f), col::Text, text, nullptr, 0, &clip);
+constexpr float kChipW = 92, kGlyphW = 26, kRowGap = 4;
+
+float labelRoom(float colW) { return colW - kChipW - kGlyphW - 26; }
+
+void measureRow(PlacedRow& r, float colW, const Fonts& f) {
+    const float room = labelRoom(colW);
+    ImGui::PushFont(f.semibold);
+    r.small = ImGui::CalcTextSize(r.text).x > room;
+    ImGui::PopFont();
+    ImGui::PushFont(r.small ? f.tiny : f.semibold);
+    const float th = ImGui::CalcTextSize(r.text, nullptr, false, room).y;
+    ImGui::PopFont();
+    r.h = std::max(34.0f, th + 10);
+    r.anchored = padAnchor(r.a, &r.anchor);
+}
+
+void schemeRow(App& app, const PlacedRow& r, ImVec2 p, float colW, bool leftSide, ImVec2 padC, float padS) {
+    const Fonts& f = app.fonts;
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const float mid = p.y + r.h * 0.5f;
+    const float gx = leftSide ? p.x + colW - kGlyphW * 0.5f : p.x + kGlyphW * 0.5f;
+    padGlyph(dl, ImVec2(gx, mid), r.a, f);
+
+    const float room = labelRoom(colW);
+    ImGui::PushFont(r.small ? f.tiny : f.semibold);
+    const ImVec2 ts = ImGui::CalcTextSize(r.text, nullptr, false, room);
+    const float tx = leftSide ? (r.small ? p.x + kChipW + 12 : gx - kGlyphW * 0.5f - 10 - ts.x) : gx + kGlyphW * 0.5f + 10;
+    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(tx, mid - ts.y * 0.5f), col::Text, r.text, nullptr, room);
     ImGui::PopFont();
 
-    const float frameH = ImGui::GetFrameHeight();
-    ImGui::SetCursorScreenPos(ImVec2(leftSide ? p.x : p.x + w - chipW, p.y + (h - frameH) * 0.5f));
+    if (r.anchored) {  // leader line: out to the controller's side, then to the button
+        const ImVec2 a(padC.x + r.anchor.x * padS, padC.y + r.anchor.y * padS);
+        const ImVec2 s(leftSide ? p.x + colW + 4 : p.x - 4, mid);
+        const float elbow = padC.x + (leftSide ? -166.0f : 166.0f) * padS;
+        const ImU32 line = withAlpha(col::Accent, 210);
+        dl->AddLine(s, ImVec2(elbow, mid), line, 1.2f);
+        dl->AddLine(ImVec2(elbow, mid), a, line, 1.2f);
+        dl->AddCircleFilled(a, 3.0f, col::Accent, 12);
+    }
+
+    ImGui::SetCursorScreenPos(ImVec2(leftSide ? p.x : p.x + colW - kChipW, mid - ImGui::GetFrameHeight() * 0.5f));
     ImGui::PushID(leftSide ? 1 : 2);
-    rowKeys(app, a, chipW);
+    rowKeys(app, r.a, kChipW);
     ImGui::PopID();
-    ImGui::SetCursorScreenPos(p);
-    ImGui::Dummy(ImVec2(w, h));
 }
 
 // "Пешком" -> "ПЕШКОМ" (UTF-8 Cyrillic and Latin).
@@ -1020,29 +1082,55 @@ void drawBindings(App& app) {
     const float w = ImGui::GetContentRegionAvail().x;
     const ImVec2 p = ImGui::GetCursorScreenPos();
     ImDrawList* dl = ImGui::GetWindowDrawList();
+    const float cx = p.x + w * 0.5f;
 
-    // Heading with the thin pink line down to the controller, then the controller.
+    // Heading with a thin divider and a diamond, as on console control-scheme screens.
     const std::string heading = upper(s.title);
     ImGui::PushFont(f.title);
     const ImVec2 hs = ImGui::CalcTextSize(heading.c_str());
-    dl->AddText(ImVec2(p.x + (w - hs.x) * 0.5f, p.y), col::Text, heading.c_str());
+    dl->AddText(ImVec2(cx - hs.x * 0.5f, p.y), col::Text, heading.c_str());
     ImGui::PopFont();
-    const float scale = std::clamp(w / 760.0f, 0.7f, 1.0f);
-    const float lineTop = p.y + hs.y + 6, padTop = lineTop + 26;
-    dl->AddLine(ImVec2(p.x + w * 0.5f, lineTop), ImVec2(p.x + w * 0.5f, padTop + 4), col::Accent, 1.5f);
-    drawDualSense(dl, ImVec2(p.x + w * 0.5f, padTop + 86 * scale), scale);
-    ImGui::Dummy(ImVec2(w, padTop - p.y + 200 * scale + 10));
+    const float dy = p.y + hs.y + 12;
+    dl->AddLine(ImVec2(cx - 150, dy), ImVec2(cx - 9, dy), col::Line, 1);
+    dl->AddLine(ImVec2(cx + 9, dy), ImVec2(cx + 150, dy), col::Line, 1);
+    dl->AddQuadFilled(ImVec2(cx, dy - 5), ImVec2(cx + 5, dy), ImVec2(cx, dy + 5), ImVec2(cx - 5, dy), col::Accent);
 
-    if (ImGui::BeginTable("##scheme_rows", 2, ImGuiTableFlags_SizingStretchSame)) {
-        ImGui::TableNextColumn();
-        for (const SchemeRow& r : s.left)
-            if (r.text) schemeRow(app, r.a, r.text, true);
-        if (s.extra != Action::Count) schemeRow(app, s.extra, s.extraText, true);
-        ImGui::TableNextColumn();
-        for (const SchemeRow& r : s.right)
-            if (r.text) schemeRow(app, r.a, r.text, false);
-        ImGui::EndTable();
+    // Controller in the middle, label columns either side; rows sorted by where their button is,
+    // so the leader lines don't cross.
+    const float padS = std::clamp((w - 640) / 300.0f, 0.75f, 1.05f);
+    const float colW = (w - 380 * padS) * 0.5f;
+    std::vector<PlacedRow> left, right;
+    for (const SchemeRow& r : s.left)
+        if (r.text) left.push_back({r.a, r.text});
+    if (s.extra != Action::Count) left.push_back({s.extra, s.extraText});
+    for (const SchemeRow& r : s.right)
+        if (r.text) right.push_back({r.a, r.text});
+    float leftH = 0, rightH = 0;
+    for (auto* side : {&left, &right}) {
+        for (PlacedRow& r : *side) measureRow(r, colW, f);
+        std::stable_sort(side->begin(), side->end(), [](const PlacedRow& a, const PlacedRow& b) {
+            return a.anchored != b.anchored ? a.anchored : a.anchored && a.anchor.y < b.anchor.y;
+        });
+        float& total = side == &left ? leftH : rightH;
+        for (const PlacedRow& r : *side) total += r.h + kRowGap;
     }
+    const float top = dy + 26;
+    const float areaH = std::max({leftH, rightH, 230 * padS});
+    const ImVec2 padC(cx, top + areaH * 0.5f);
+    drawDualSense(dl, padC, padS);
+
+    float y = top + (areaH - leftH) * 0.5f;
+    for (const PlacedRow& r : left) {
+        schemeRow(app, r, ImVec2(p.x, y), colW, true, padC, padS);
+        y += r.h + kRowGap;
+    }
+    y = top + (areaH - rightH) * 0.5f;
+    for (const PlacedRow& r : right) {
+        schemeRow(app, r, ImVec2(p.x + w - colW, y), colW, false, padC, padS);
+        y += r.h + kRowGap;
+    }
+    ImGui::SetCursorScreenPos(p);
+    ImGui::Dummy(ImVec2(w, top - p.y + areaH + 12));
     ImGui::EndChild();
 }
 
