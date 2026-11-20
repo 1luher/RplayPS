@@ -90,8 +90,8 @@ void endCard() { ImGui::EndChild(); }
 
 bool primaryButton(const char* label, float width = 0) {
     ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(IM_COL32(104, 145, 255, 255)));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(IM_COL32(60, 104, 230, 255)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(IM_COL32(255, 116, 158, 255)));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(IM_COL32(226, 66, 114, 255)));
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(IM_COL32(255, 255, 255, 255)));
     const bool pressed = ImGui::Button(label, ImVec2(width, 0));
     ImGui::PopStyleColor(4);
@@ -158,7 +158,7 @@ void stickView(const char* label, Stick s, float radius, const Fonts& f) {
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const ImVec2 c(p.x + radius, p.y + radius);
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddCircleFilled(c, radius, IM_COL32(16, 18, 24, 255), 64);
+    dl->AddCircleFilled(c, radius, IM_COL32(13, 13, 17, 255), 64);
     dl->AddCircle(c, radius, col::Line, 64, 1.5f);
     dl->AddCircle(c, radius * 0.5f, withAlpha(col::Line, 140), 48, 1.0f);
     dl->AddLine(ImVec2(c.x - radius + 8, c.y), ImVec2(c.x + radius - 8, c.y), withAlpha(col::Line, 160));
@@ -188,7 +188,7 @@ void statTile(const char* label, const char* value, const char* unit, float widt
     ImGui::BeginGroup();
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const float h = 68;
-    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + width, p.y + h), IM_COL32(16, 18, 24, 255), 10);
+    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + width, p.y + h), IM_COL32(13, 13, 17, 255), 10);
     ImGui::SetCursorScreenPos(ImVec2(p.x + 12, p.y + 8));
     ImGui::PushFont(f.tiny);
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
@@ -222,7 +222,7 @@ void triggerBar(const char* label, std::uint8_t value, const Fonts& f) {
     const float w = ImGui::GetContentRegionAvail().x, h = 8;
     const float y = p.y + 6;
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w, y + h), IM_COL32(16, 18, 24, 255), h);
+    dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w, y + h), IM_COL32(13, 13, 17, 255), h);
     if (value) dl->AddRectFilled(ImVec2(p.x, y), ImVec2(p.x + w * value / 255.0f, y + h), col::Accent, h);
     ImGui::Dummy(ImVec2(w, 20));
 }
@@ -260,9 +260,9 @@ void drawCaptureBanner(App& app) {
     const ImVec2 p = ImGui::GetCursorScreenPos();
     const float w = ImGui::GetContentRegionAvail().x, h = 62;
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    const ImU32 tone = captured ? col::Good : col::Accent;
-    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), withAlpha(tone, captured ? 36 : 22), 14);
-    dl->AddRect(p, ImVec2(p.x + w, p.y + h), withAlpha(tone, captured ? 140 : 70), 14, 0, 1.5f);
+    const ImU32 tone = captured ? col::Good : col::Muted;  // calm when idle, green when live
+    dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), captured ? withAlpha(col::Good, 30) : col::Card, 14);
+    dl->AddRect(p, ImVec2(p.x + w, p.y + h), captured ? withAlpha(col::Good, 140) : col::Line, 14, 0, 1.0f);
 
     ImGui::SetCursorScreenPos(ImVec2(p.x + 18, p.y + 14));
     ImGui::PushFont(f.title);
@@ -498,6 +498,66 @@ void drawLive(App& app) {
     endCard();
 }
 
+void drawSidebar(App& app) {
+    const Fonts& f = app.fonts;
+    struct Item {
+        Page page;
+        const char* iconGlyph;
+        const char* title;
+    };
+    static const Item items[] = {
+        {Page::Home, icon::Home, "Главная"},     {Page::Mouse, icon::Mouse, "Мышь"},
+        {Page::Keys, icon::Keyboard, "Раскладка"}, {Page::Record, icon::Record, "Запись"},
+        {Page::Help, icon::Help, "Справка"},
+    };
+    ImGui::BeginChild("##nav", ImVec2(200, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (const Item& it : items) {
+        const bool on = app.page == it.page;
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const ImVec2 size(ImGui::GetContentRegionAvail().x, 46);
+        ImGui::PushID(static_cast<int>(it.page));
+        if (ImGui::InvisibleButton("##item", size)) app.page = it.page;
+        const bool hover = ImGui::IsItemHovered();
+        ImGui::PopID();
+        if (on || hover) dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), on ? col::CardHi : col::Card, 10);
+        if (on) dl->AddRectFilled(ImVec2(p.x, p.y + 12), ImVec2(p.x + 3, p.y + size.y - 12), col::Accent, 2);
+        ImGui::PushFont(on ? f.semibold : f.body);
+        const float th = ImGui::GetTextLineHeight();
+        dl->AddText(ImVec2(p.x + 16, p.y + (size.y - th) * 0.5f), on ? col::Accent : col::Muted, it.iconGlyph);
+        dl->AddText(ImVec2(p.x + 46, p.y + (size.y - th) * 0.5f), on ? col::Text : col::Muted, it.title);
+        ImGui::PopFont();
+        ImGui::Dummy(ImVec2(0, 2));
+    }
+    ImGui::EndChild();
+}
+
+void drawFirstSteps(App& app) {
+    const Fonts& f = app.fonts;
+    beginCard("##steps", icon::Help, "Как начать", f);
+    static const char* steps[] = {
+        "Привяжите PS5: адрес, account ID и PIN из «Настройки → Система → Дистанционное воспроизведение».",
+        "Нажмите F8 — клавиатура и мышь начнут управлять PS5.",
+        "Переключите монитор на вход PS5 и играйте. F8 ещё раз — вернуть их компьютеру.",
+    };
+    for (int i = 0; i < 3; ++i) {
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddCircleFilled(ImVec2(p.x + 12, p.y + 12), 12, col::AccentSoft);
+        char n[2] = {static_cast<char>('1' + i), 0};
+        ImGui::PushFont(f.semibold);
+        dl->AddText(ImVec2(p.x + 8, p.y + 2), col::Accent, n);
+        ImGui::PopFont();
+        ImGui::SetCursorScreenPos(ImVec2(p.x + 34, p.y + 2));
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextUnformatted(steps[i]);
+        ImGui::PopTextWrapPos();
+        ImGui::Dummy(ImVec2(0, 4));
+    }
+    mutedText("Настройки мыши, раскладка и запись — в меню слева.", f);
+    endCard();
+}
+
 void drawKeys(App& app) {
     const Fonts& f = app.fonts;
     beginCard("##keys", icon::Keyboard, "Горячие клавиши", f);
@@ -607,7 +667,7 @@ void drawBindings(App& app) {
         ImGui::EndTabBar();
     }
     const Layout& layout = app.profile.layout(app.keysClass);
-    ImGui::BeginChild("##keys_list", ImVec2(0, 330), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    ImGui::BeginChild("##keys_list", ImVec2(0, 560), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
     if (ImGui::BeginTable("##keys_table", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
         ImGui::TableSetupColumn("Действие", ImGuiTableColumnFlags_WidthStretch, 2.2f);
         ImGui::TableSetupColumn("Кнопка", ImGuiTableColumnFlags_WidthStretch, 1.0f);
@@ -750,24 +810,41 @@ void drawUi(App& app) {
                      ImGuiWindowFlags_NoBringToFrontOnFocus);
     ImGui::PopStyleVar();
 
+    // Thin sunset line across the top: the one GTA 6 touch.
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 p = ImGui::GetWindowPos();
+        const float w = ImGui::GetWindowWidth();
+        dl->AddRectFilledMultiColor(p, ImVec2(p.x + w * 0.5f, p.y + 3), col::Accent, col::Accent2, col::Accent2,
+                                    col::Accent);
+        dl->AddRectFilledMultiColor(ImVec2(p.x + w * 0.5f, p.y), ImVec2(p.x + w, p.y + 3), col::Accent2,
+                                    withAlpha(col::Accent2, 0), withAlpha(col::Accent2, 0), col::Accent2);
+    }
+
     drawHeader(app);
     drawCaptureBanner(app);
 
-    if (ImGui::BeginTable("##cols", 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) {
-        ImGui::TableNextColumn();
-        drawPs5(app);
-        ImGui::Dummy(ImVec2(0, 2));
-        drawMouse(app);
-        ImGui::TableNextColumn();
-        drawLive(app);
-        ImGui::Dummy(ImVec2(0, 2));
-        drawKeys(app);
-        ImGui::Dummy(ImVec2(0, 2));
-        drawRecord(app);
-        ImGui::Dummy(ImVec2(0, 2));
-        drawBindings(app);
-        ImGui::EndTable();
+    drawSidebar(app);
+    ImGui::SameLine(0, 18);
+    ImGui::BeginChild("##page", ImVec2(0, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
+    switch (app.page) {
+        case Page::Home:
+            if (ImGui::BeginTable("##home", 2, ImGuiTableFlags_SizingStretchSame)) {
+                ImGui::TableNextColumn();
+                drawPs5(app);
+                ImGui::Dummy(ImVec2(0, 2));
+                drawFirstSteps(app);
+                ImGui::TableNextColumn();
+                drawLive(app);
+                ImGui::EndTable();
+            }
+            break;
+        case Page::Mouse: drawMouse(app); break;
+        case Page::Keys: drawBindings(app); break;
+        case Page::Record: drawRecord(app); break;
+        case Page::Help: drawKeys(app); break;
     }
+    ImGui::EndChild();
     ImGui::End();
 }
 

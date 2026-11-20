@@ -74,23 +74,23 @@ Fonts applyTheme(float dpi) {
     c[ImGuiCol_ChildBg] = toVec4(col::Card);
     c[ImGuiCol_PopupBg] = toVec4(col::CardHi);
     c[ImGuiCol_Border] = toVec4(col::Line);
-    c[ImGuiCol_FrameBg] = toVec4(IM_COL32(32, 36, 48, 255));
-    c[ImGuiCol_FrameBgHovered] = toVec4(IM_COL32(40, 45, 60, 255));
-    c[ImGuiCol_FrameBgActive] = toVec4(IM_COL32(46, 52, 70, 255));
+    c[ImGuiCol_FrameBg] = toVec4(IM_COL32(30, 30, 38, 255));
+    c[ImGuiCol_FrameBgHovered] = toVec4(IM_COL32(38, 38, 48, 255));
+    c[ImGuiCol_FrameBgActive] = toVec4(IM_COL32(44, 44, 56, 255));
     c[ImGuiCol_SliderGrab] = toVec4(col::Accent);
-    c[ImGuiCol_SliderGrabActive] = toVec4(IM_COL32(120, 156, 255, 255));
+    c[ImGuiCol_SliderGrabActive] = toVec4(IM_COL32(255, 128, 166, 255));
     c[ImGuiCol_CheckMark] = toVec4(col::Accent);
-    c[ImGuiCol_Button] = toVec4(IM_COL32(36, 41, 55, 255));
-    c[ImGuiCol_ButtonHovered] = toVec4(IM_COL32(46, 52, 70, 255));
-    c[ImGuiCol_ButtonActive] = toVec4(IM_COL32(56, 63, 84, 255));
+    c[ImGuiCol_Button] = toVec4(IM_COL32(32, 32, 41, 255));
+    c[ImGuiCol_ButtonHovered] = toVec4(IM_COL32(44, 44, 56, 255));
+    c[ImGuiCol_ButtonActive] = toVec4(IM_COL32(52, 52, 66, 255));
     c[ImGuiCol_Header] = toVec4(col::AccentSoft);
-    c[ImGuiCol_HeaderHovered] = toVec4(IM_COL32(77, 124, 255, 70));
-    c[ImGuiCol_HeaderActive] = toVec4(IM_COL32(77, 124, 255, 100));
+    c[ImGuiCol_HeaderHovered] = toVec4(IM_COL32(255, 86, 136, 60));
+    c[ImGuiCol_HeaderActive] = toVec4(IM_COL32(255, 86, 136, 90));
     c[ImGuiCol_Separator] = toVec4(col::Line);
     c[ImGuiCol_PlotHistogram] = toVec4(col::Accent);
     c[ImGuiCol_ScrollbarBg] = ImVec4(0, 0, 0, 0);
     c[ImGuiCol_ScrollbarGrab] = toVec4(col::Line);
-    c[ImGuiCol_TextSelectedBg] = toVec4(IM_COL32(77, 124, 255, 90));
+    c[ImGuiCol_TextSelectedBg] = toVec4(IM_COL32(255, 86, 136, 80));
     c[ImGuiCol_NavHighlight] = toVec4(col::Accent);
     return f;
 }
@@ -98,7 +98,7 @@ Fonts applyTheme(float dpi) {
 void styleTitleBar(HWND hwnd) {
     const BOOL dark = TRUE;
     DwmSetWindowAttribute(hwnd, 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
-    const COLORREF caption = RGB(13, 15, 20), text = RGB(232, 235, 242);
+    const COLORREF caption = RGB(9, 9, 12), text = RGB(232, 235, 242);
     DwmSetWindowAttribute(hwnd, 35 /*DWMWA_CAPTION_COLOR*/, &caption, sizeof(caption));
     DwmSetWindowAttribute(hwnd, 36 /*DWMWA_TEXT_COLOR*/, &text, sizeof(text));
 }

@@ -21,6 +21,8 @@ constexpr UINT kMsgLinkState = WM_APP + 10;  // wParam = LinkState
 constexpr UINT kMsgCapture = WM_APP + 11;    // wParam = CaptureEvent
 constexpr UINT kMsgClass = WM_APP + 12;      // wParam = ControlClass
 
+enum class Page { Home, Mouse, Keys, Record, Help };
+
 struct App {
     HWND window = nullptr;
     bool consoleOnly = false;  // --console-only: no PS5, visualiser only
@@ -48,6 +50,7 @@ struct App {
     char pinField[16] = "";
     std::string saveNote;
     ControlClass editClass = ControlClass::Foot;  // which class the mouse tab edits
+    Page page = Page::Home;                         // sidebar section
 
     // Key binding editor: waiting for a key for (keysClass, bindAction, bindSlot).
     ControlClass keysClass = ControlClass::Foot;
