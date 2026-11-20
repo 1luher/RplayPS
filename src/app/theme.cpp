@@ -272,8 +272,8 @@ void drawBackdrop(ImDrawList* dl, ImVec2 pos, ImVec2 size) {
         float x, h, lean;
     };
     // Heights are fractions of the window height; crowns stay inside the window.
-    static constexpr P palms[] = {{0.60f, 0.46f, -0.08f}, {0.72f, 0.68f, 0.07f}, {0.85f, 0.78f, -0.06f},
-                                  {0.96f, 0.58f, 0.10f}};
+    static constexpr P palms[] = {{0.62f, 0.30f, -0.08f}, {0.73f, 0.44f, 0.07f}, {0.86f, 0.52f, -0.06f},
+                                  {0.97f, 0.36f, 0.10f}};
     unsigned seed = 21;
     for (const P& p : palms) palm(dl, ImVec2(pos.x + size.x * p.x, end.y + 4), size.y * p.h, p.lean, seed++, col::Palm);
 }

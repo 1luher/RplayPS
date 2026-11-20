@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 
@@ -922,7 +923,9 @@ void rowKeys(App& app, Action a, float width) {
         const std::string text =
             (waiting ? std::string("…") : k ? inputCodeName(k) : std::string("—")) + "##m" + std::to_string(i);
         if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, ImGui::GetStyle().FramePadding.y));  // W A S D fit
         if (ImGui::Button(text.c_str(), ImVec2(w, 0))) startBinding(app, d, 0);
+        ImGui::PopStyleVar();
         if (waiting) ImGui::PopStyleColor();
         ImGui::SetItemTooltip("%s", i == 0 ? "вперёд" : i == 1 ? "влево" : i == 2 ? "назад" : "вправо");
     }
@@ -965,8 +968,20 @@ void schemeRow(App& app, const PlacedRow& r, ImVec2 p, float colW, bool leftSide
     const float room = labelRoom(colW);
     ImGui::PushFont(r.compact ? f.tiny : f.semibold);
     const ImVec2 ts = ImGui::CalcTextSize(r.text, nullptr, false, room);
-    const float tx = leftSide ? (r.compact ? p.x + kChipW + 12 : gx - kGlyphW * 0.5f - 10 - ts.x) : gx + kGlyphW * 0.5f + 10;
-    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), ImVec2(tx, mid - ts.y * 0.5f), col::Text, r.text, nullptr, room);
+    // Wrapped line by line so the left column can be right-aligned towards the controller.
+    ImFont* font = ImGui::GetFont();
+    const float fs = ImGui::GetFontSize(), lineH = ImGui::GetTextLineHeight();
+    const char* end = r.text + std::strlen(r.text);
+    float ly = mid - ts.y * 0.5f;
+    for (const char* s = r.text; s < end; ly += lineH) {
+        const char* e = font->CalcWordWrapPositionA(fs / font->FontSize, s, end, room);
+        if (e == s) ++e;  // a word wider than the room: still move on
+        const float lw = font->CalcTextSizeA(fs, FLT_MAX, 0, s, e).x;
+        const float lx = leftSide ? gx - kGlyphW * 0.5f - 10 - lw : gx + kGlyphW * 0.5f + 10;
+        dl->AddText(font, fs, ImVec2(lx, ly), col::Text, s, e);
+        for (s = e; s < end && *s == ' '; ++s) {
+        }
+    }
     ImGui::PopFont();
 
     if (r.anchored) {  // leader line: out to the controller's side, then to the button
@@ -1098,7 +1113,7 @@ void drawBindings(App& app) {
     // Controller in the middle, label columns either side; rows sorted by where their button is,
     // so the leader lines don't cross.
     const float padS = std::clamp((w - 640) / 300.0f, 0.75f, 1.05f);
-    const float colW = (w - 380 * padS) * 0.5f;
+    const float colW = (w - 350 * padS) * 0.5f;
     std::vector<PlacedRow> left, right;
     for (const SchemeRow& r : s.left)
         if (r.text) left.push_back({r.a, r.text});
