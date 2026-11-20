@@ -14,6 +14,7 @@
 #include "core/bindings.h"
 #include "core/mouse_stick.h"
 #include "core/pad.h"
+#include "core/driving.h"
 #include "core/profile.h"
 #include "win/sound.h"
 
@@ -87,6 +88,8 @@ private:
     std::unique_ptr<ClassPads> builder_;
     std::atomic<ControlClass> class_{ControlClass::Foot};
     MouseStick mouse_;
+    StickRamp steering_;  // smooth A/D steering in vehicles
+    RadialAim radial_;    // weapon wheel / vehicle menu / partner menu
     PadState sent_;
 
     mutable std::mutex statsMutex_;

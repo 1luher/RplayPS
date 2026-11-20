@@ -71,6 +71,8 @@ Layout footLayout() {
 
 Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     Layout l;
+    l.steerRampMs = 140;                       // A/D steer progressively
+    bind(l, Action::Soft, vk::LAlt);           // gentle throttle while held
     bind(l, Action::R2, 'W');                  // throttle
     bind(l, Action::L2, 'S');                  // brake / reverse
     bind(l, Action::MoveLeft, 'A');            // steering
@@ -126,6 +128,8 @@ json layoutToJson(const Layout& l) {
     const MouseSettings& m = l.mouse;
     return {
         {"walk_scale", l.walkScale},
+        {"steer_ramp_ms", l.steerRampMs},
+        {"soft_trigger", l.softTrigger},
         {"mouse_target", l.mouseTarget == MouseTarget::LeftStick ? "left" : "right"},
         {"mouse",
          {{"sensitivity", m.sensitivity},
@@ -144,6 +148,10 @@ json layoutToJson(const Layout& l) {
 void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
     readNumber(j, "walk_scale", l.walkScale, w);
     l.walkScale = std::clamp(l.walkScale, 0.1f, 1.0f);
+    readNumber(j, "steer_ramp_ms", l.steerRampMs, w);
+    l.steerRampMs = std::clamp(l.steerRampMs, 0, 500);
+    readNumber(j, "soft_trigger", l.softTrigger, w);
+    l.softTrigger = std::clamp(l.softTrigger, 0.1f, 1.0f);
     if (j.contains("mouse_target")) {
         const json& t = j["mouse_target"];
         if (t == "left")
@@ -274,7 +282,7 @@ PadState composePad(const PadBuilder& b, MouseTarget target, Stick mouse, double
 
 ClassPads::ClassPads(const Profile& p) : profile_(p) {
     builders_.reserve(kControlClassCount);
-    for (const Layout& l : profile_.layouts) builders_.emplace_back(l.bindings, l.walkScale);
+    for (const Layout& l : profile_.layouts) builders_.emplace_back(l.bindings, l.walkScale, l.softTrigger);
 }
 
 void ClassPads::setInput(InputCode c, bool down, double tMs) {

@@ -234,7 +234,8 @@ void InputThread::onRawInput(HRAWINPUT handle) {
     if (raw.header.dwType == RIM_TYPEMOUSE) {
         const RAWMOUSE& m = raw.data.mouse;
         if (!(m.usFlags & MOUSE_MOVE_ABSOLUTE) && (m.lLastX || m.lLastY)) {
-            mouse_.addMotion(now, m.lLastX, m.lLastY);
+            if (radial_.active()) radial_.addMotion(m.lLastX, m.lLastY);  // pick in the wheel
+            else mouse_.addMotion(now, m.lLastX, m.lLastY);
             ++mouseEvents_;
         }
         const USHORT f = m.usButtonFlags;
@@ -276,7 +277,14 @@ void InputThread::onRawInput(HRAWINPUT handle) {
 
 void InputThread::evaluate(bool timed) {
     const double now = nowMs();
-    const PadState pad = builder_->build(now, mouse_.evaluate(now));  // active class decides the mapping
+    PadState pad = builder_->build(now, mouse_.evaluate(now));  // active class decides the mapping
+    // Holding a wheel button (L1, D-pad left/right) turns the mouse into a direction picker.
+    radial_.update(pad.pressed(PadButton::L1) || pad.pressed(PadButton::DpadLeft) || pad.pressed(PadButton::DpadRight), now);
+    if (radial_.active()) {
+        pad = builder_->build(now, {});
+        pad.right = radial_.value();
+    }
+    if (builder_->activeLayout().steerRampMs > 0) pad.left = steering_.step(pad.left, now);
     if (pad != sent_) {
         sent_ = pad;
         if (cb_.onPad) cb_.onPad(pad);
@@ -311,6 +319,7 @@ void InputThread::rebuildPads() {
     builder_ = std::make_unique<ClassPads>(pendingProfile_);  // key state starts fresh
     builder_->setActive(class_);
     mouse_.configure(builder_->activeLayout().mouse);
+    steering_.setRampMs(builder_->activeLayout().steerRampMs);
 }
 
 void InputThread::applyClass(ControlClass c) {
@@ -318,5 +327,6 @@ void InputThread::applyClass(ControlClass c) {
     builder_->setActive(c);
     class_ = c;
     mouse_.configure(builder_->activeLayout().mouse);  // keeps recent motion: no jump
+    steering_.setRampMs(builder_->activeLayout().steerRampMs);
     if (cb_.onClass) cb_.onClass(c);
 }

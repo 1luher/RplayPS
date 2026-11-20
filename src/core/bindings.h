@@ -19,6 +19,7 @@ enum class Action : std::uint8_t {
     L2, R2,
     MoveUp, MoveDown, MoveLeft, MoveRight,
     Walk,
+    Soft,  // while held, L2/R2 press only by the layout's softTrigger (gentle throttle)
     Count
 };
 constexpr std::size_t kActionCount = static_cast<std::size_t>(Action::Count);
@@ -54,7 +55,7 @@ constexpr double kWheelPulseMs = 60.0;
 // Held inputs -> controller state. Opposite directions: the most recently pressed wins.
 class PadBuilder {
 public:
-    PadBuilder(const Bindings& b, float walkScale);  // walkScale is clamped to 0.1..1
+    PadBuilder(const Bindings& b, float walkScale, float softTrigger = 0.4f);  // both clamped to 0.1..1
     void setInput(InputCode c, bool down, double tMs);
     void releaseAll();
     PadState build(double tMs, Stick right) const;
@@ -66,6 +67,7 @@ private:
 
     Bindings bindings_;
     float walkScale_;
+    float softTrigger_;
     std::array<bool, code::Max> down_{};
     std::array<double, code::Max> pressTime_{};
     double wheelUntil_[2] = {-1e18, -1e18};

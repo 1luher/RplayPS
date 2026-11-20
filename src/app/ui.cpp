@@ -444,6 +444,12 @@ void drawMouse(App& app) {
                          &m.recenterMs, 2, 100, "%d мс");
     changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &layout.walkScale,
                            0.1f, 1.0f, "%.2f");
+    if (app.editClass == ControlClass::Ground || app.editClass == ControlClass::Water) {
+        changed |= sliderInt("Плавность руля", "За сколько мс A/D доводят руль до упора (0 — сразу)", &layout.steerRampMs,
+                             0, 500, "%d мс");
+        changed |= sliderFloat("Мягкий газ (Alt)", "Сила газа и тормоза, пока зажат Alt", &layout.softTrigger, 0.1f,
+                               1.0f, "%.2f");
+    }
     changed |= ImGui::Checkbox("Инвертировать ось Y", &m.invertY);
     if (changed) {
         m.clamp();
@@ -542,6 +548,7 @@ const char* padButtonRu(Action a) {
         case Action::MoveLeft: return "Л. стик ←";
         case Action::MoveRight: return "Л. стик →";
         case Action::Walk: return "модификатор";
+        case Action::Soft: return "модификатор";
         case Action::Count: break;
     }
     return "";
@@ -557,6 +564,7 @@ const char* actionMeaningRu(ControlClass c, Action a) {
         case Action::MoveLeft: return air ? "крен влево (обычно мышь)" : vehicle ? "руль влево" : "влево";
         case Action::MoveRight: return air ? "крен вправо (обычно мышь)" : vehicle ? "руль вправо" : "вправо";
         case Action::Walk: return "шаг: стик наклоняется не до конца";
+        case Action::Soft: return "мягкий газ / тормоз (L2, R2 не в пол)";
         case Action::R2: return air ? (c == ControlClass::Plane ? "газ" : "вверх") : vehicle ? "газ" : "огонь";
         case Action::L2: return air ? (c == ControlClass::Plane ? "сброс газа" : "вниз") : vehicle ? "тормоз / назад" : "прицел, говорить";
         case Action::Cross: return air ? "—" : vehicle ? "ручной тормоз" : "прыжок, лазание, уклон";

@@ -25,7 +25,7 @@ constexpr NamedCode kNamed[] = {
 constexpr std::string_view kActionNames[kActionCount] = {
     "cross",    "circle",    "square",    "triangle",   "dpad_up", "dpad_down", "dpad_left", "dpad_right",
     "l1",       "r1",        "l3",        "r3",         "options", "create",    "touchpad",  "ps",
-    "l2",       "r2",        "move_up",   "move_down",  "move_left", "move_right", "walk",
+    "l2",       "r2",        "move_up",   "move_down",  "move_left", "move_right", "walk",     "soft",
 };
 
 }  // namespace
@@ -79,8 +79,8 @@ std::optional<Action> parseAction(std::string_view name) {
     return std::nullopt;
 }
 
-PadBuilder::PadBuilder(const Bindings& b, float walkScale)
-    : bindings_(b), walkScale_(std::clamp(walkScale, 0.1f, 1.0f)) {}
+PadBuilder::PadBuilder(const Bindings& b, float walkScale, float softTrigger)
+    : bindings_(b), walkScale_(std::clamp(walkScale, 0.1f, 1.0f)), softTrigger_(std::clamp(softTrigger, 0.1f, 1.0f)) {}
 
 void PadBuilder::setInput(InputCode c, bool down, double tMs) {
     if (c == code::None || c >= code::Max) return;
@@ -124,8 +124,9 @@ PadState PadBuilder::build(double tMs, Stick right) const {
     PadState pad;
     for (std::size_t i = 0; i < static_cast<std::size_t>(PadButton::Count); ++i)
         pad.set(static_cast<PadButton>(i), actionActive(static_cast<Action>(i), tMs));
-    pad.l2 = actionActive(Action::L2, tMs) ? 255 : 0;
-    pad.r2 = actionActive(Action::R2, tMs) ? 255 : 0;
+    const auto full = static_cast<std::uint8_t>(actionActive(Action::Soft, tMs) ? std::lround(255 * softTrigger_) : 255);
+    pad.l2 = actionActive(Action::L2, tMs) ? full : 0;
+    pad.r2 = actionActive(Action::R2, tMs) ? full : 0;
 
     auto axis = [&](Action negative, Action positive) {
         const bool n = actionActive(negative, tMs), p = actionActive(positive, tMs);

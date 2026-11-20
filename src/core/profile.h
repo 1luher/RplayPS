@@ -26,6 +26,8 @@ struct Layout {
     MouseSettings mouse;
     MouseTarget mouseTarget = MouseTarget::RightStick;
     float walkScale = 0.5f;
+    int steerRampMs = 0;       // 0..500: A/D reach full lock in this time (0 = instantly)
+    float softTrigger = 0.4f;  // 0.1..1: L2/R2 strength while "soft" is held
 };
 
 struct Profile {
