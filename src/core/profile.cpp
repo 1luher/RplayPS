@@ -126,7 +126,9 @@ json layoutToJson(const Layout& l) {
         json keys = json::array();
         for (InputCode c : l.bindings.slots[i])
             if (c != code::None) keys.push_back(inputCodeName(c));
-        if (!keys.empty()) bindings[std::string(actionName(static_cast<Action>(i)))] = keys;
+        // "ps" is written even when empty, so clearing it survives a reload (see readLayout).
+        if (!keys.empty() || static_cast<Action>(i) == Action::PS)
+            bindings[std::string(actionName(static_cast<Action>(i)))] = keys;
     }
     const MouseSettings& m = l.mouse;
     return {
@@ -182,7 +184,10 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
         warn(w, "Профиль: «bindings» должно быть объектом, пропущено.");
         return;
     }
+    // Profiles saved before the PS button had a key have no "ps": keep the default (Home) for it.
+    const auto psDefault = l.bindings.slots[static_cast<std::size_t>(Action::PS)];
     l.bindings = Bindings{};
+    if (!j["bindings"].contains("ps")) l.bindings.slots[static_cast<std::size_t>(Action::PS)] = psDefault;
     for (const auto& [actionKey, keys] : j["bindings"].items()) {
         const auto action = parseAction(actionKey);
         if (!action) {

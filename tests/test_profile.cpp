@@ -84,6 +84,24 @@ TEST_CASE("missing_class_takes_its_default_layout") {
     CHECK(slot(*p, ControlClass::Foot, Action::MoveUp) == 'W');
 }
 
+TEST_CASE("old_profile_without_ps_gets_home_but_an_explicit_ps_wins") {
+    auto p = fromFoot(R"({"bindings":{"cross":["Space"]}})", nullptr);  // saved before PS had a key
+    REQUIRE(p);
+    CHECK(slot(*p, ControlClass::Foot, Action::PS) == vk::Home);
+    p = fromFoot(R"({"bindings":{"cross":["Space"],"ps":["P"]}})", nullptr);
+    REQUIRE(p);
+    CHECK(slot(*p, ControlClass::Foot, Action::PS) == 'P');
+    p = fromFoot(R"({"bindings":{"ps":[]}})", nullptr);  // cleared on purpose stays cleared
+    REQUIRE(p);
+    CHECK(slot(*p, ControlClass::Foot, Action::PS) == code::None);
+
+    Profile cleared = defaultGtaProfile();  // cleared in the editor, saved, loaded again
+    cleared.layout(ControlClass::Foot).bindings.slots[static_cast<size_t>(Action::PS)] = {};
+    const auto back = profileFromJson(profileToJson(cleared), nullptr);
+    REQUIRE(back);
+    CHECK(slot(*back, ControlClass::Foot, Action::PS) == code::None);
+}
+
 TEST_CASE("legacy_single_layout_file_becomes_foot") {
     std::vector<std::string> w;
     auto p = profileFromJson(R"({"walk_scale":0.4,"mouse":{"sensitivity":2},"bindings":{"cross":["Space"]}})", &w);

@@ -1019,7 +1019,6 @@ struct HintRow {
     std::vector<std::string> keys;
     std::string text;
     float h = 0, keysW = 0;
-    bool compact = false;  // label too long for one line: small font, wrapped
     bool anchored = false;
     ImVec2 anchor;
 };
@@ -1056,8 +1055,10 @@ void hintRows(ControlClass c, const Layout& l, std::vector<HintRow>& left, std::
         }
         right.push_back({kRightStick, {"Мышь"}, "Обзор"});
     }
-    add(left, Action::Walk);  // our modifiers: no button on the controller, no leader line
-    add(left, Action::Soft);
+    // Our own modifiers: no button on the controller, so no leader line.
+    if (auto k = boundKeys(l, Action::Walk); !k.empty()) left.push_back({Action::Walk, std::move(k), "Шагом"});
+    if (auto k = boundKeys(l, Action::Soft); !k.empty())
+        left.push_back({Action::Soft, std::move(k), "Мягкий газ / тормоз"});
 }
 
 constexpr float kCapPad = 8, kCapGap = 4, kGlyphW = 26;
@@ -1085,11 +1086,7 @@ float hintTextRoom(const HintRow& r, float colW) { return std::max(colW - r.keys
 void measureHintRow(HintRow& r, float colW, const Fonts& f) {
     ImGui::PushFont(f.semibold);
     r.keysW = keycapsWidth(r.keys);
-    const float room = hintTextRoom(r, colW);
-    r.compact = ImGui::CalcTextSize(r.text.c_str()).x > room;
-    ImGui::PopFont();
-    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
-    const float th = ImGui::CalcTextSize(r.text.c_str(), nullptr, false, room).y;
+    const float th = ImGui::CalcTextSize(r.text.c_str(), nullptr, false, hintTextRoom(r, colW)).y;  // long: 2 lines
     ImGui::PopFont();
     r.h = std::max(34.0f, th + 10);
     r.anchored = padAnchor(r.glyph, &r.anchor);
@@ -1108,7 +1105,7 @@ void drawHintRow(ImDrawList* dl, const HintRow& r, ImVec2 p, float colW, bool le
     ImGui::PopFont();
 
     const float room = hintTextRoom(r, colW);
-    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
+    ImGui::PushFont(f.semibold);
     ImFont* font = ImGui::GetFont();
     const float fs = ImGui::GetFontSize(), lineH = ImGui::GetTextLineHeight();
     const char* text = r.text.c_str();
@@ -1145,7 +1142,8 @@ void drawHint(App& app) {
     const ImGuiViewport* vp = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + vp->WorkSize.x * 0.5f, vp->WorkPos.y + vp->WorkSize.y * 0.5f),
                             ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(std::min(vp->WorkSize.x - 48, 1120.0f), std::min(vp->WorkSize.y - 48, 780.0f)));
+    ImGui::SetNextWindowSize(ImVec2(std::min(vp->WorkSize.x - 48, 1120.0f), 0));  // height fits the content
+    ImGui::SetNextWindowSizeConstraints(ImVec2(0, 0), ImVec2(FLT_MAX, vp->WorkSize.y - 48));  // small screens: scroll
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(26, 22));
     const bool open = ImGui::BeginPopupModal("##hint", nullptr,
                                              ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
@@ -1185,7 +1183,7 @@ void drawHint(App& app) {
     std::vector<HintRow> left, right;
     hintRows(app.hintClass, app.profile.layout(app.hintClass), left, right);
     const float w = ImGui::GetContentRegionAvail().x;
-    const float padS = std::clamp((w - 620) / 300.0f, 0.8f, 1.25f);
+    const float padS = std::clamp((w - 620) / 300.0f, 0.8f, 1.15f);
     const float colW = (w - 380 * padS) * 0.5f;
     float leftH = 0, rightH = 0;
     for (auto* side : {&left, &right}) {
