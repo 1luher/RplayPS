@@ -13,6 +13,7 @@
 
 #include "core/account_id.h"
 #include "core/bindings.h"
+#include "core/lang.h"
 #include "ps5/link.h"
 #include "ps5/pairing_store.h"
 
@@ -21,13 +22,20 @@ namespace {
 std::filesystem::path pairingFile() { return appDataDir() / L"pairing.bin"; }
 
 int usage() {
-    std::puts("Использование:\n"
-              "  rplayctl discover                         найти PS5 в сети\n"
-              "  rplayctl pair <ip> <account-id> <pin>     привязать PS5 (PIN: Настройки → Система →\n"
-              "                                            Дистанционное воспроизведение → Привязать устройство)\n"
-              "  rplayctl press <кнопка> [мс=150]          нажать кнопку: cross, circle, square, triangle, ps,\n"
-              "                                            options, dpad_up …\n"
-              "  rplayctl stick <x> <y> <мс>               держать правый стик (x, y от -1 до 1)");
+    std::puts(tr("Использование:\n"
+                 "  rplayctl discover                         найти PS5 в сети\n"
+                 "  rplayctl pair <ip> <account-id> <pin>     привязать PS5 (PIN: Настройки → Система →\n"
+                 "                                            Дистанционное воспроизведение → Привязать устройство)\n"
+                 "  rplayctl press <кнопка> [мс=150]          нажать кнопку: cross, circle, square, triangle, ps,\n"
+                 "                                            options, dpad_up …\n"
+                 "  rplayctl stick <x> <y> <мс>               держать правый стик (x, y от -1 до 1)",
+                 "Usage:\n"
+                 "  rplayctl discover                         find the PS5 on the network\n"
+                 "  rplayctl pair <ip> <account-id> <pin>     pair the PS5 (PIN: Settings → System →\n"
+                 "                                            Remote Play → Pair Device)\n"
+                 "  rplayctl press <button> [ms=150]          press a button: cross, circle, square, triangle, ps,\n"
+                 "                                            options, dpad_up …\n"
+                 "  rplayctl stick <x> <y> <ms>               hold the right stick (x, y from -1 to 1)"));
     return 2;
 }
 
@@ -35,7 +43,7 @@ int usage() {
 int withConnection(const std::function<void(Ps5Link&)>& body) {
     auto pairing = loadPairing(pairingFile());
     if (!pairing) {
-        std::puts("PS5 не привязана. Сначала: rplayctl pair <ip> <account-id> <pin>");
+        std::puts(tr("PS5 не привязана. Сначала: rplayctl pair <ip> <account-id> <pin>", "The PS5 is not paired. First: rplayctl pair <ip> <account-id> <pin>"));
         return 1;
     }
     std::mutex m;
@@ -69,6 +77,7 @@ int withConnection(const std::function<void(Ps5Link&)>& body) {
 
 int main(int argc, char** argv) {
     SetConsoleOutputCP(CP_UTF8);
+    setUiLang(PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_RUSSIAN ? Lang::Ru : Lang::En);
     if (argc < 2) return usage();
     const std::string cmd = argv[1];
 
@@ -76,11 +85,11 @@ int main(int argc, char** argv) {
         Ps5Link link(nullptr);
         auto found = link.discover(std::chrono::milliseconds(2500));
         if (found.empty()) {
-            std::puts("PS5 не найдена. Она включена и в той же сети? VPN выключен?");
+            std::puts(tr("PS5 не найдена. Она включена и в той же сети? VPN выключен?", "PS5 not found. Is it on and on the same network? Is the VPN off?"));
             return 1;
         }
         for (const auto& c : found)
-            std::printf("%s  %s  %s\n", c.host.c_str(), c.name.c_str(), c.ready ? "готова" : "спит");
+            std::printf("%s  %s  %s\n", c.host.c_str(), c.name.c_str(), c.ready ? tr("готова", "ready") : tr("спит", "asleep"));
         return 0;
     }
 
@@ -93,21 +102,21 @@ int main(int argc, char** argv) {
         }
         const auto pin = parsePin(argv[4]);
         if (!pin) {
-            std::puts("PIN — это 8 цифр с экрана PS5.");
+            std::puts(tr("PIN — это 8 цифр с экрана PS5.", "The PIN is the 8 digits on the PS5 screen."));
             return 1;
         }
         Ps5Link link(nullptr);
-        std::puts("Привязываю…");
+        std::puts(tr("Привязываю…", "Pairing…"));
         auto pairing = link.pair(argv[2], *account, *pin, &error);
         if (!pairing) {
             std::printf("%s\n", error.c_str());
             return 1;
         }
         if (!savePairing(*pairing, pairingFile())) {
-            std::puts("Привязка прошла, но сохранить её не удалось.");
+            std::puts(tr("Привязка прошла, но сохранить её не удалось.", "Paired, but the pairing could not be saved."));
             return 1;
         }
-        std::printf("Готово: %s (%s). Сохранено в %s\n", pairing->name.c_str(), pairing->host.c_str(),
+        std::printf(tr("Готово: %s (%s). Сохранено в %s\n", "Done: %s (%s). Saved to %s\n"), pairing->name.c_str(), pairing->host.c_str(),
                     pairingFile().string().c_str());
         return 0;
     }
@@ -115,7 +124,7 @@ int main(int argc, char** argv) {
     if (cmd == "press" && (argc == 3 || argc == 4)) {
         const auto action = parseAction(argv[2]);
         if (!action || static_cast<size_t>(*action) >= static_cast<size_t>(PadButton::Count)) {
-            std::printf("Неизвестная кнопка «%s».\n", argv[2]);
+            std::printf(tr("Неизвестная кнопка «%s».\n", "Unknown button \"%s\".\n"), argv[2]);
             return usage();
         }
         const int ms = argc == 4 ? std::atoi(argv[3]) : 150;
@@ -126,7 +135,7 @@ int main(int argc, char** argv) {
             std::this_thread::sleep_for(std::chrono::milliseconds(ms));
             link.submit(PadState{});
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            std::puts("Нажато.");
+            std::puts(tr("Нажато.", "Pressed."));
         });
     }
 

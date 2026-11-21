@@ -11,6 +11,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "core/lang.h"
+
 namespace {
 
 // The PS Remote Play Windows app's OAuth client (ba495a24-…), as chiaki-ng uses it:
@@ -98,7 +100,7 @@ extern const char kPsnLoginUrl[] =
     "&PlatformPrivacyWs1=minimal&";
 
 std::optional<AccountId> fetchPsnAccountId(const std::string& code, std::string* errorRu) {
-    const auto fail = [&](const char* message) -> std::optional<AccountId> {
+    const auto fail = [&](const char* message) -> std::optional<AccountId> {  // already in the UI language
         if (errorRu) *errorRu = message;
         return std::nullopt;
     };
@@ -108,11 +110,13 @@ std::optional<AccountId> fetchPsnAccountId(const std::string& code, std::string*
     DWORD status = 0;
     std::string reply;
     if (!request(L"POST", kTokenPath, body, postHeaders, &status, &reply))
-        return fail("Нет связи с сервером Sony. Проверьте интернет и попробуйте ещё раз.");
+        return fail(tr("Нет связи с сервером Sony. Проверьте интернет и попробуйте ещё раз.", "Can't reach Sony's server. Check your internet connection and try again."));
     if (status != 200) {
         wipe(reply);
-        return fail("Sony не приняла код. Он одноразовый и действует пару минут: войдите ещё раз и сразу вставьте "
-                    "новую ссылку.");
+        return fail(tr("Sony не приняла код. Он одноразовый и действует пару минут: войдите ещё раз и сразу вставьте "
+                       "новую ссылку.",
+                       "Sony rejected the code. It is single-use and expires in a couple of minutes: sign in again and paste "
+                       "the new link right away."));
     }
     auto token = nlohmann::json::parse(reply, nullptr, false);
     wipe(reply);
@@ -126,19 +130,19 @@ std::optional<AccountId> fetchPsnAccountId(const std::string& code, std::string*
                       });
     if (!safe) {
         wipe(access);
-        return fail("Sony прислала непонятный ответ. Попробуйте ещё раз чуть позже.");
+        return fail(tr("Sony прислала непонятный ответ. Попробуйте ещё раз чуть позже.", "Sony sent an unexpected reply. Try again a bit later."));
     }
 
     // The token's own info carries the account number ("user_id", decimal).
     const std::wstring path = std::wstring(kTokenPath) + L"/" + std::wstring(access.begin(), access.end());
     const bool answered = request(L"GET", path, {}, kAuthHeader, &status, &reply);
     wipe(access);
-    if (!answered) return fail("Нет связи с сервером Sony. Проверьте интернет и попробуйте ещё раз.");
+    if (!answered) return fail(tr("Нет связи с сервером Sony. Проверьте интернет и попробуйте ещё раз.", "Can't reach Sony's server. Check your internet connection and try again."));
     const auto info = nlohmann::json::parse(reply, nullptr, false);
     wipe(reply);
     if (status != 200 || !info.is_object() || !info.contains("user_id") || !info["user_id"].is_string())
-        return fail("Sony не отдала номер аккаунта. Попробуйте войти ещё раз.");
+        return fail(tr("Sony не отдала номер аккаунта. Попробуйте войти ещё раз.", "Sony didn't return the account number. Try signing in again."));
     const auto id = parseAccountId(info["user_id"].get<std::string>(), nullptr);
-    if (!id) return fail("Sony прислала номер аккаунта в неожиданном виде.");
+    if (!id) return fail(tr("Sony прислала номер аккаунта в неожиданном виде.", "Sony returned the account number in an unexpected form."));
     return id;
 }

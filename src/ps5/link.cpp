@@ -2,6 +2,8 @@
 // Based on PS5-DirectView (AGPL-3.0), https://github.com/babymonie/PS5-DirectView
 // (src/RemotePlayClient.cpp: discovery, pairing, wake-up and input-only session).
 #include "ps5/link.h"
+
+#include "core/lang.h"
 #include "ps5/liveness.h"
 #include "core/quality.h"
 
@@ -38,36 +40,36 @@ std::int16_t stickAxis(float v) {
 std::string quitText(ChiakiQuitReason reason, const std::string& remote) {
     std::string text;
     switch (reason) {
-        case CHIAKI_QUIT_REASON_STOPPED: text = "Отключено."; break;
+        case CHIAKI_QUIT_REASON_STOPPED: text = tr("Отключено.", "Disconnected."); break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_CONNECTION_REFUSED:
-            text = "PS5 отказала в подключении. Проверьте: Настройки → Система → Дистанционное воспроизведение → Включить.";
+            text = tr("PS5 отказала в подключении. Проверьте: Настройки → Система → Дистанционное воспроизведение → Включить.", "The PS5 refused the connection. Check: Settings → System → Remote Play → Enable.");
             break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_IN_USE:
-            text = "Дистанционное воспроизведение уже занято. Закройте PS Remote Play и chiaki на других устройствах.";
+            text = tr("Дистанционное воспроизведение уже занято. Закройте PS Remote Play и chiaki на других устройствах.", "Remote Play is already in use. Close PS Remote Play and chiaki on other devices.");
             break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_CRASH:
-            text = "Сбой дистанционного воспроизведения на PS5. Подождите несколько секунд и подключитесь снова.";
+            text = tr("Сбой дистанционного воспроизведения на PS5. Подождите несколько секунд и подключитесь снова.", "Remote Play failed on the PS5. Wait a few seconds and connect again.");
             break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_VERSION_MISMATCH:
-            text = "Прошивка PS5 использует версию протокола, которую встроенное ядро chiaki-ng не знает. Нужно обновить ядро.";
+            text = tr("Прошивка PS5 использует версию протокола, которую встроенное ядро chiaki-ng не знает. Нужно обновить ядро.", "The PS5 firmware uses a protocol version the built-in chiaki-ng core doesn't know. The core needs an update.");
             break;
         case CHIAKI_QUIT_REASON_SESSION_REQUEST_UNKNOWN:
-            text = "PS5 отклонила сеанс. Если вы заново привязывали устройства на PS5, привяжите RPlay K&M ещё раз.";
+            text = tr("PS5 отклонила сеанс. Если вы заново привязывали устройства на PS5, привяжите RPlay K&M ещё раз.", "The PS5 rejected the session. If you re-paired devices on the PS5, pair RPlay K&M again.");
             break;
         case CHIAKI_QUIT_REASON_CTRL_CONNECT_FAILED:
         case CHIAKI_QUIT_REASON_CTRL_CONNECTION_REFUSED:
-            text = "Не удалось подключиться к PS5 (TCP 9295). PS5 включена и в этой сети?";
+            text = tr("Не удалось подключиться к PS5 (TCP 9295). PS5 включена и в этой сети?", "Couldn't connect to the PS5 (TCP 9295). Is it on and on this network?");
             break;
         case CHIAKI_QUIT_REASON_STREAM_CONNECTION_REMOTE_DISCONNECTED:
-            text = "PS5 завершила сеанс.";
+            text = tr("PS5 завершила сеанс.", "The PS5 ended the session.");
             break;
         case CHIAKI_QUIT_REASON_STREAM_CONNECTION_REMOTE_SHUTDOWN:
-            text = "PS5 выключается или уходит в режим покоя.";
+            text = tr("PS5 выключается или уходит в режим покоя.", "The PS5 is shutting down or going to rest mode.");
             break;
         case CHIAKI_QUIT_REASON_STREAM_CONNECTION_UNKNOWN:
-            text = "Связь с PS5 потеряна (UDP 9296). Проверьте сеть и брандмауэр.";
+            text = tr("Связь с PS5 потеряна (UDP 9296). Проверьте сеть и брандмауэр.", "Connection to the PS5 lost (UDP 9296). Check the network and firewall.");
             break;
-        default: text = std::string("Связь с PS5 потеряна: ") + chiaki_quit_reason_string(reason); break;
+        default: text = std::string(tr("Связь с PS5 потеряна: ", "Connection to the PS5 lost: ")) + chiaki_quit_reason_string(reason); break;
     }
     if (!remote.empty()) text += " (" + remote + ")";
     return text;
@@ -343,12 +345,12 @@ struct Ps5Link::Impl {
     }
 
     void run(Pairing p) {
-        setState(LinkState::Searching, "Ищу " + (p.name.empty() ? std::string("PS5") : p.name) + "…");
+        setState(LinkState::Searching, tr("Ищу ", "Looking for ") + (p.name.empty() ? std::string("PS5") : p.name) + "…");
         auto console = locate(p);
-        if (!keepGoing()) return finish(LinkState::Idle, "Отключено.");
+        if (!keepGoing()) return finish(LinkState::Idle, tr("Отключено.", "Disconnected."));
         if (!console)
             return finish(LinkState::Lost,
-                          "PS5 не найдена в сети. Она включена (или в режиме покоя с доступом к сети) и в той же сети?");
+                          tr("PS5 не найдена в сети. Она включена (или в режиме покоя с доступом к сети) и в той же сети?", "PS5 not found. Is it on (or in rest mode with network access) and on the same network?"));
         if (console->host != p.host) {  // DHCP moved it
             p.host = console->host;
             std::lock_guard lock(m);
@@ -356,19 +358,21 @@ struct Ps5Link::Impl {
         }
 
         if (!console->ready) {
-            setState(LinkState::Waking, "Бужу PS5…");
+            setState(LinkState::Waking, tr("Бужу PS5…", "Waking the PS5…"));
             if (chiaki_discovery_wakeup(&log, nullptr, p.host.c_str(), wakeCredential(p), true) != CHIAKI_ERR_SUCCESS)
-                return finish(LinkState::Lost, "Не удалось отправить сигнал пробуждения.");
+                return finish(LinkState::Lost, tr("Не удалось отправить сигнал пробуждения.", "Couldn't send the wake-up signal."));
             auto ready = probe(p.host, 45000, [](const std::vector<FoundConsole>& v) { return !v.empty() && v.front().ready; },
                                true);
-            if (!keepGoing()) return finish(LinkState::Idle, "Отключено.");
+            if (!keepGoing()) return finish(LinkState::Idle, tr("Отключено.", "Disconnected."));
             if (ready.empty() || !ready.front().ready)
                 return finish(LinkState::Lost,
-                              "PS5 не проснулась. Включите: Настройки → Система → Энергосбережение → Функции в режиме "
-                              "покоя → Разрешить включение PS5 по сети.");
+                              tr("PS5 не проснулась. Включите: Настройки → Система → Энергосбережение → Функции в режиме "
+                                 "покоя → Разрешить включение PS5 по сети.",
+                                 "The PS5 didn't wake up. Turn on: Settings → System → Power Saving → Features Available in Rest Mode "
+                                 "→ Enable Turning On PS5 from Network."));
         }
 
-        setState(LinkState::Connecting, "Подключаюсь (только управление)…");
+        setState(LinkState::Connecting, tr("Подключаюсь (только управление)…", "Connecting (controls only)…"));
         ChiakiConnectInfo info{};
         info.ps5 = true;
         info.host = p.host.c_str();
@@ -409,7 +413,7 @@ struct Ps5Link::Impl {
         }
         ChiakiErrorCode err = chiaki_session_init(session.get(), &info, &log);
         if (err != CHIAKI_ERR_SUCCESS)
-            return finish(LinkState::Lost, std::string("Ошибка запуска Remote Play: ") + chiaki_error_string(err));
+            return finish(LinkState::Lost, std::string(tr("Ошибка запуска Remote Play: ", "Remote Play failed to start: ")) + chiaki_error_string(err));
         chiaki_session_set_event_cb(session.get(), &Impl::eventCb, this);
         chiaki_session_set_video_sample_cb(session.get(), &Impl::videoCb, this);
         if (wantAudio) {
@@ -420,7 +424,7 @@ struct Ps5Link::Impl {
         err = chiaki_session_start(session.get());
         if (err != CHIAKI_ERR_SUCCESS) {
             chiaki_session_fini(session.get());
-            return finish(LinkState::Lost, std::string("Ошибка запуска Remote Play: ") + chiaki_error_string(err));
+            return finish(LinkState::Lost, std::string(tr("Ошибка запуска Remote Play: ", "Remote Play failed to start: ")) + chiaki_error_string(err));
         }
 
         bool connected = false, userStop = false, silentDrop = false, wentToSleep = false;
@@ -437,7 +441,7 @@ struct Ps5Link::Impl {
                 activeSession = session.get();
             }
             sendNeutral();  // never resume buttons held before a reconnect
-            setState(LinkState::Connected, "Подключено к " + (p.name.empty() ? std::string("PS5") : p.name) + ".");
+            setState(LinkState::Connected, tr("Подключено к ", "Connected to ") + (p.name.empty() ? std::string("PS5") : p.name) + ".");
             // chiaki-ng never notices a silently dead peer on the LAN, so probe the console.
             Liveness live;
             for (;;) {
@@ -489,16 +493,20 @@ struct Ps5Link::Impl {
         chiaki_session_join(session.get());
         chiaki_session_fini(session.get());
 
-        if (userStop) return finish(LinkState::Idle, "Отключено.");
+        if (userStop) return finish(LinkState::Idle, tr("Отключено.", "Disconnected."));
         if (silentDrop && !quit)
-            return finish(LinkState::Lost, wentToSleep ? "PS5 ушла в режим покоя."
-                                                       : "PS5 перестала отвечать (сеть или питание). Нажмите F8, "
-                                                         "чтобы подключиться снова.");
+            return finish(LinkState::Lost, wentToSleep ? tr("PS5 ушла в режим покоя.", "The PS5 went into rest mode.")
+                                                       : tr("PS5 перестала отвечать (сеть или питание). Нажмите F8, "
+                                                            "чтобы подключиться снова.",
+                                                            "The PS5 stopped responding (network or power). Press F8 "
+                                                            "to connect again."));
         if (loginPin)
             return finish(LinkState::Lost,
-                          "У пользователя PS5 включён код входа. Отключите его: Настройки → Пользователи и учётные "
-                          "записи → Настройки входа.");
-        if (timedOut) return finish(LinkState::Lost, "PS5 не ответила на запрос Remote Play вовремя.");
+                          tr("У пользователя PS5 включён код входа. Отключите его: Настройки → Пользователи и учётные "
+                             "записи → Настройки входа.",
+                             "The PS5 user has a login passcode. Turn it off: Settings → Users and Accounts "
+                             "→ Login Settings."));
+        if (timedOut) return finish(LinkState::Lost, tr("PS5 не ответила на запрос Remote Play вовремя.", "The PS5 didn't answer the Remote Play request in time."));
         finish(LinkState::Lost, quitText(reason, remote));
     }
 
@@ -536,14 +544,14 @@ std::optional<Pairing> Ps5Link::pair(const std::string& host, const AccountId& a
         if (errorRu) *errorRu = text;
         return std::nullopt;
     };
-    if (!impl_->libReady) return fail("Не удалось запустить сетевую часть (Winsock).");
-    if (host.empty()) return fail("Укажите IP-адрес PS5.");
-    if (pin > 99999999) return fail("PIN — это 8 цифр с экрана PS5.");
+    if (!impl_->libReady) return fail(tr("Не удалось запустить сетевую часть (Winsock).", "Couldn't start networking (Winsock)."));
+    if (host.empty()) return fail(tr("Укажите IP-адрес PS5.", "Enter the PS5 IP address."));
+    if (pin > 99999999) return fail(tr("PIN — это 8 цифр с экрана PS5.", "The PIN is the 8 digits on the PS5 screen."));
 
     auto found = impl_->probe(host, 2500, [](const std::vector<FoundConsole>& v) { return !v.empty(); }, false);
-    if (found.empty()) return fail("PS5 не ответила по этому адресу. Проверьте IP и что PS5 включена.");
+    if (found.empty()) return fail(tr("PS5 не ответила по этому адресу. Проверьте IP и что PS5 включена.", "No answer from the PS5 at this address. Check the IP and that the PS5 is on."));
     const FoundConsole console = found.front();
-    if (!console.ready) return fail("PS5 в режиме покоя. Включите её полностью, чтобы привязать.");
+    if (!console.ready) return fail(tr("PS5 в режиме покоя. Включите её полностью, чтобы привязать.", "The PS5 is in rest mode. Turn it fully on to pair."));
 
     ChiakiRegistInfo info{};
     info.target = CHIAKI_TARGET_PS5_1;
@@ -574,7 +582,7 @@ std::optional<Pairing> Ps5Link::pair(const std::string& host, const AccountId& a
     };
     ChiakiRegist regist;
     if (chiaki_regist_start(&regist, &impl_->log, &info, cb, &ctx) != CHIAKI_ERR_SUCCESS)
-        return fail("Не удалось начать привязку.");
+        return fail(tr("Не удалось начать привязку.", "Couldn't start pairing."));
     bool done;
     {
         std::unique_lock lock(ctx.m);
@@ -584,8 +592,10 @@ std::optional<Pairing> Ps5Link::pair(const std::string& host, const AccountId& a
     if (!done) chiaki_regist_stop(&regist);
     chiaki_regist_fini(&regist);
     if (!done || ctx.type != CHIAKI_REGIST_EVENT_TYPE_FINISHED_SUCCESS)
-        return fail("Привязка не удалась. Проверьте PIN (он действует ~5 минут), account ID и что "
-                    "дистанционное воспроизведение включено на PS5.");
+        return fail(tr("Привязка не удалась. Проверьте PIN (он действует ~5 минут), account ID и что "
+                       "дистанционное воспроизведение включено на PS5.",
+                       "Pairing failed. Check the PIN (valid for ~5 minutes), the Account ID and that "
+                       "Remote Play is enabled on the PS5."));
 
     Pairing p;
     p.target = static_cast<std::uint32_t>(ctx.host.target ? ctx.host.target : CHIAKI_TARGET_PS5_1);
@@ -604,7 +614,7 @@ std::optional<Pairing> Ps5Link::pair(const std::string& host, const AccountId& a
 void Ps5Link::connect(const Pairing& pairing) {
     Impl& d = *impl_;
     if (!d.libReady) {
-        d.setState(LinkState::Lost, "Не удалось запустить сетевую часть (Winsock).");
+        d.setState(LinkState::Lost, tr("Не удалось запустить сетевую часть (Winsock).", "Couldn't start networking (Winsock)."));
         return;
     }
     {

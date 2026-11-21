@@ -14,6 +14,7 @@
 #include <iterator>
 
 #include "core/account_id.h"
+#include "core/lang.h"
 #include "ps5/psn_login.h"
 
 namespace {
@@ -25,12 +26,12 @@ struct StateLook {
 
 StateLook stateLook(LinkState s) {
     switch (s) {
-        case LinkState::Idle: return {"Не подключено", col::Muted};
-        case LinkState::Searching: return {"Поиск PS5", col::Warn};
-        case LinkState::Waking: return {"Пробуждение", col::Warn};
-        case LinkState::Connecting: return {"Подключение", col::Warn};
-        case LinkState::Connected: return {"Подключено", col::Good};
-        case LinkState::Lost: return {"Связь потеряна", col::Bad};
+        case LinkState::Idle: return {tr("Не подключено", "Not connected"), col::Muted};
+        case LinkState::Searching: return {tr("Поиск PS5", "Looking for PS5"), col::Warn};
+        case LinkState::Waking: return {tr("Пробуждение", "Waking up"), col::Warn};
+        case LinkState::Connecting: return {tr("Подключение", "Connecting"), col::Warn};
+        case LinkState::Connected: return {tr("Подключено", "Connected"), col::Good};
+        case LinkState::Lost: return {tr("Связь потеряна", "Connection lost"), col::Bad};
     }
     return {"", col::Muted};
 }
@@ -285,19 +286,28 @@ void drawHeader(App& app) {
     ImGui::PopFont();
     ImGui::SameLine();
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
-    mutedText("клавиатура и мышь для GTA 6 на PS5", f);
+    mutedText(tr("клавиатура и мышь для GTA 6 на PS5", "keyboard and mouse for GTA 6 on PS5"), f);
 
-    // Right side: the hint button, then the link state pill.
-    const StateLook look = app.consoleOnly ? StateLook{"Без консоли", col::Muted} : stateLook(state);
+    // Right side: language switch, the hint button, then the link state pill.
+    const StateLook look = app.consoleOnly ? StateLook{tr("Без консоли", "No console"), col::Muted} : stateLook(state);
     ImGui::PushFont(f.semibold);
     const float pillW = ImGui::CalcTextSize(look.text).x + 14 + 8 + 8 + 14;
     ImGui::PopFont();
-    const std::string hint = std::string(icon::Help) + "  Подсказка";
+    const std::string hint = std::string(icon::Help) + tr("  Подсказка", "  Hint");
     const float hintW = ImGui::CalcTextSize(hint.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
-    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW - hintW - 12);
+    const std::string lang = std::string(icon::Globe) + (uiLang() == Lang::Ru ? "  English" : "  Русский");
+    const float langW = ImGui::CalcTextSize(lang.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW - hintW - langW - 24);
+    ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 2);
+    if (ghostButton(lang.c_str())) {
+        setUiLang(uiLang() == Lang::Ru ? Lang::En : Lang::Ru);
+        saveLanguage(app);
+    }
+    ImGui::SetItemTooltip("Язык интерфейса / Interface language");
+    ImGui::SameLine(0, 12);
     ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 2);
     if (ghostButton(hint.c_str())) openHint(app);
-    ImGui::SetItemTooltip("Кнопки геймпада из подсказок GTA 6 и ваши клавиши");
+    ImGui::SetItemTooltip(tr("Кнопки геймпада из подсказок GTA 6 и ваши клавиши", "Controller buttons from GTA 6 prompts and your keys"));
     ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW);
     ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 4);
     pill(look.text, look.color, f.semibold);
@@ -324,17 +334,17 @@ void drawCaptureBanner(App& app) {
     ImGui::SetCursorScreenPos(ImVec2(ImGui::GetCursorScreenPos().x, p.y + 10));
     ImGui::BeginGroup();
     ImGui::PushFont(f.semibold);
-    ImGui::TextUnformatted(captured ? "Захват включён — управление уходит на PS5" : "Захват выключен");
+    ImGui::TextUnformatted(captured ? tr("Захват включён — управление уходит на PS5", "Capture on — input goes to the PS5") : tr("Захват выключен", "Capture off"));
     ImGui::SameLine(0, 14);
     {
-        const std::string mode = "Режим: " + std::string(controlClassTitleRu(app.input->currentClass()));
+        const std::string mode = std::string(tr("Режим: ", "Mode: ")) + std::string(controlClassTitle(app.input->currentClass()));
         ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Accent));
         ImGui::TextUnformatted(mode.c_str());
         ImGui::PopStyleColor();
     }
     ImGui::PopFont();
-    mutedText(captured ? "Отпустить: F8. Если окно потеряет фокус, всё отпустится само."
-                       : "Нажмите F8, затем переключите монитор на вход PS5.",
+    mutedText(captured ? tr("Отпустить: F8. Если окно потеряет фокус, всё отпустится само.", "Release: F8. If the window loses focus, everything is released.")
+                       : tr("Нажмите F8, затем переключите монитор на вход PS5.", "Press F8, then switch your monitor to the PS5 input."),
               f);
     ImGui::EndGroup();
 
@@ -356,32 +366,34 @@ void drawPsnLogin(App& app) {
         if (id) {
             strncpy_s(app.accountField, accountIdToBase64(*id).c_str(), _TRUNCATE);
             app.psnLoginOpen = false;
-            app.psnNote = "Account ID получен из PSN и вписан выше.";
+            app.psnNote = tr("Account ID получен из PSN и вписан выше.", "Account ID received from PSN and filled in above.");
         } else {
             app.psnError = error;
         }
     }
     const bool busy = app.psn_job.valid();
     if (!app.psnLoginOpen) {
-        if (ghostButton("Узнать Account ID — войти в PSN", -FLT_MIN)) {
+        if (ghostButton(tr("Узнать Account ID — войти в PSN", "Get Account ID — sign in to PSN"), -FLT_MIN)) {
             const std::wstring url(kPsnLoginUrl, kPsnLoginUrl + std::strlen(kPsnLoginUrl));
             ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             app.psnLoginOpen = true;
             app.psnError.clear();
             app.psnNote.clear();
         }
-        ImGui::SetItemTooltip("Откроется официальная страница входа Sony. Пароль вводится только там.");
+        ImGui::SetItemTooltip(tr("Откроется официальная страница входа Sony. Пароль вводится только там.", "Opens Sony's official sign-in page. Your password is entered only there."));
         noteText(app.psnNote, col::Good, f);
         return;
     }
-    mutedText("1. В браузере открылась страница Sony: войдите под аккаунтом, на котором играете в GTA 6.\n"
-              "2. Появится пустая страница с надписью «redirect»: скопируйте её адрес и вставьте сюда.",
+    mutedText(tr("1. В браузере открылась страница Sony: войдите под аккаунтом, на котором играете в GTA 6.\n"
+                 "2. Появится пустая страница с надписью «redirect»: скопируйте её адрес и вставьте сюда.",
+                 "1. Sony's page opened in your browser: sign in with the account you play GTA 6 on.\n"
+                 "2. A blank page saying \"redirect\" appears: copy its address and paste it here."),
               f);
-    inputField("Адрес страницы redirect", "https://remoteplay.dl.playstation.net/remoteplay/redirect?code=…",
+    inputField(tr("Адрес страницы redirect", "Redirect page address"), "https://remoteplay.dl.playstation.net/remoteplay/redirect?code=…",
                app.psnRedirectField, sizeof(app.psnRedirectField), f, ImGuiInputTextFlags_Password);
     const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
     ImGui::BeginDisabled(busy);
-    if (primaryButton(busy ? "Спрашиваю Sony…" : "Получить Account ID", half)) {
+    if (primaryButton(busy ? tr("Спрашиваю Sony…", "Asking Sony…") : tr("Получить Account ID", "Get Account ID"), half)) {
         if (const auto code = oauthCodeFromRedirect(app.psnRedirectField)) {
             app.psnError.clear();
             app.psn_job = std::async(std::launch::async, [code = *code] {
@@ -390,13 +402,13 @@ void drawPsnLogin(App& app) {
                 return std::pair{id, error};
             });
         } else {
-            app.psnError = "В адресе нет кода. Скопируйте адрес страницы «redirect» целиком.";
+            app.psnError = tr("В адресе нет кода. Скопируйте адрес страницы «redirect» целиком.", "No code in that address. Copy the whole address of the \"redirect\" page.");
         }
         SecureZeroMemory(app.psnRedirectField, sizeof(app.psnRedirectField));  // one-time secret
     }
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ghostButton("Отмена", half)) {
+    if (ghostButton(tr("Отмена", "Cancel"), half)) {
         app.psnLoginOpen = false;
         SecureZeroMemory(app.psnRedirectField, sizeof(app.psnRedirectField));
     }
@@ -414,7 +426,7 @@ void drawPs5(App& app) {
     }
     beginCard("##ps5", icon::Game, "PS5", f);
     if (app.consoleOnly) {
-        mutedText("Режим без консоли: на PS5 ничего не отправляется. Удобно настраивать мышь.", f);
+        mutedText(tr("Режим без консоли: на PS5 ничего не отправляется. Удобно настраивать мышь.", "No-console mode: nothing is sent to the PS5. Handy for tuning the mouse."), f);
         endCard();
         return;
     }
@@ -431,12 +443,12 @@ void drawPs5(App& app) {
         const bool busy = state != LinkState::Idle && state != LinkState::Lost;
         const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
         if (!busy) {
-            if (primaryButton("Подключить", half)) app.link->connect(*app.pairing);
-        } else if (ghostButton("Отключить", half)) {
+            if (primaryButton(tr("Подключить", "Connect"), half)) app.link->connect(*app.pairing);
+        } else if (ghostButton(tr("Отключить", "Disconnect"), half)) {
             app.link->disconnect();
         }
         ImGui::SameLine();
-        if (ghostButton("Забыть PS5", half)) {
+        if (ghostButton(tr("Забыть PS5", "Forget PS5"), half)) {
             app.link->disconnect();
             std::error_code ec;
             std::filesystem::remove(app.pairingPath, ec);
@@ -447,14 +459,16 @@ void drawPs5(App& app) {
     }
 
     // Not paired yet.
-    mutedText("На PS5: Настройки → Система → Дистанционное воспроизведение → Привязать устройство. "
-              "Введите адрес, account ID и PIN с экрана.",
+    mutedText(tr("На PS5: Настройки → Система → Дистанционное воспроизведение → Привязать устройство. "
+                 "Введите адрес, account ID и PIN с экрана.",
+                 "On the PS5: Settings → System → Remote Play → Pair Device. "
+                 "Enter the address, Account ID and the PIN from the screen."),
               f);
     const bool pairingBusy = app.pairing_job.valid();
     const bool findBusy = app.discover_job.valid();
     ImGui::Dummy(ImVec2(0, 2));
     {
-        const std::string findLabel = std::string(icon::Search) + (findBusy ? "  Ищу…" : "  Найти PS5 в сети");
+        const std::string findLabel = std::string(icon::Search) + (findBusy ? tr("  Ищу…", "  Searching…") : tr("  Найти PS5 в сети", "  Find PS5 on the network"));
         ImGui::BeginDisabled(findBusy);
         if (ghostButton(findLabel.c_str(), -FLT_MIN)) {
             Ps5Link* link = app.link;
@@ -465,19 +479,19 @@ void drawPs5(App& app) {
     }
     if (ready(app.discover_job)) {
         app.found = app.discover_job.get();
-        if (app.found.empty()) app.pairError = "PS5 не найдена. Она включена и в той же сети? VPN выключен?";
+        if (app.found.empty()) app.pairError = tr("PS5 не найдена. Она включена и в той же сети? VPN выключен?", "PS5 not found. Is it on and on the same network? Is the VPN off?");
     }
     for (const auto& c : app.found) {
-        const std::string label = c.name + "   " + c.host + (c.ready ? "" : "   · спит");
+        const std::string label = c.name + "   " + c.host + (c.ready ? "" : tr("   · спит", "   · asleep"));
         if (ImGui::Selectable(label.c_str(), false, 0, ImVec2(0, 26))) strncpy_s(app.hostField, c.host.c_str(), _TRUNCATE);
     }
-    inputField("Адрес PS5", "192.168.1.50", app.hostField, sizeof(app.hostField), f);
-    inputField("Account ID", "число или 12 символов base64", app.accountField, sizeof(app.accountField), f);
+    inputField(tr("Адрес PS5", "PS5 address"), "192.168.1.50", app.hostField, sizeof(app.hostField), f);
+    inputField("Account ID", tr("число или 12 символов base64", "number or 12 base64 characters"), app.accountField, sizeof(app.accountField), f);
     drawPsnLogin(app);
-    inputField("PIN", "8 цифр с экрана PS5", app.pinField, sizeof(app.pinField), f, ImGuiInputTextFlags_CharsDecimal);
+    inputField("PIN", tr("8 цифр с экрана PS5", "8 digits from the PS5 screen"), app.pinField, sizeof(app.pinField), f, ImGuiInputTextFlags_CharsDecimal);
     ImGui::Dummy(ImVec2(0, 2));
     ImGui::BeginDisabled(pairingBusy);
-    const std::string pairLabel = std::string(icon::Link) + (pairingBusy ? "  Привязываю… до 30 с" : "  Привязать");
+    const std::string pairLabel = std::string(icon::Link) + (pairingBusy ? tr("  Привязываю… до 30 с", "  Pairing… up to 30 s") : tr("  Привязать", "  Pair"));
     if (primaryButton(pairLabel.c_str(), -FLT_MIN)) {
         std::string error;
         const auto account = parseAccountId(app.accountField, &error);
@@ -488,7 +502,7 @@ void drawPs5(App& app) {
         if (!account) {
             app.pairError = error;
         } else if (!pin) {
-            app.pairError = "PIN — это 8 цифр с экрана PS5.";
+            app.pairError = tr("PIN — это 8 цифр с экрана PS5.", "The PIN is the 8 digits on the PS5 screen.");
         } else {
             app.pairError.clear();
             Ps5Link* link = app.link;
@@ -506,7 +520,7 @@ void drawPs5(App& app) {
         auto [p, error] = app.pairing_job.get();
         if (!p) app.pairError = error;
         if (p) {
-            if (!savePairing(*p, app.pairingPath)) app.pairError = "Привязка прошла, но сохранить её не удалось.";
+            if (!savePairing(*p, app.pairingPath)) app.pairError = tr("Привязка прошла, но сохранить её не удалось.", "Paired, but the pairing could not be saved.");
             app.pairing = *p;
             app.pinField[0] = '\0';
             app.link->connect(*app.pairing);
@@ -519,12 +533,12 @@ void drawPs5(App& app) {
 void drawMouse(App& app) {
     const Fonts& f = app.fonts;
     bool changed = false;
-    beginCard("##mouse", icon::Mouse, "Мышь", f);
+    beginCard("##mouse", icon::Mouse, tr("Мышь", "Mouse"), f);
     // One tab per class: each class has its own mouse settings.
     if (ImGui::BeginTabBar("##classes")) {
         for (size_t i = 0; i < kControlClassCount; ++i) {
             const auto c = static_cast<ControlClass>(i);
-            const std::string title(controlClassTitleRu(c));
+            const std::string title(controlClassTitle(c));
             if (ImGui::BeginTabItem(title.c_str())) {
                 app.editClass = c;
                 ImGui::EndTabItem();
@@ -535,39 +549,41 @@ void drawMouse(App& app) {
     Layout& layout = app.profile.layout(app.editClass);
     MouseSettings& m = layout.mouse;
     const bool vehicle = app.editClass == ControlClass::Ground || app.editClass == ControlClass::Water;
-    mutedText(layout.mouseTarget == MouseTarget::LeftStick ? "Мышь здесь управляет наклонами (левый стик)."
-                                                           : "Мышь здесь управляет камерой (правый стик).",
+    mutedText(layout.mouseTarget == MouseTarget::LeftStick ? tr("Мышь здесь управляет наклонами (левый стик).", "Here the mouse tilts the aircraft (left stick).")
+                                                           : tr("Мышь здесь управляет камерой (правый стик).", "Here the mouse moves the camera (right stick)."),
               f);
     ImGui::Dummy(ImVec2(0, 2));
 
     // What almost everyone needs.
-    changed |= sliderFloat("Чувствительность", "Насколько поворачивает камера при том же движении мыши. "
-                                               "Можно вписать число в поле справа.",
+    changed |= sliderFloat(tr("Чувствительность", "Sensitivity"), tr("Насколько поворачивает камера при том же движении мыши. "
+                                                  "Можно вписать число в поле справа.",
+                                                  "How far the camera turns for the same mouse movement. "
+                                                  "You can type a number in the field on the right."),
                            &m.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
-    changed |= sliderFloat("Вертикаль", "Чувствительность по вертикали относительно горизонтали", &m.yRatio, 0.25f,
+    changed |= sliderFloat(tr("Вертикаль", "Vertical"), tr("Чувствительность по вертикали относительно горизонтали", "Vertical sensitivity relative to horizontal"), &m.yRatio, 0.25f,
                            3.0f, "× %.2f");
     if (vehicle) {
-        changed |= sliderInt("Плавность руля", "За сколько миллисекунд A/D доводят руль до упора (0 — сразу)",
-                             &layout.steerRampMs, 0, 500, "%d мс");
-        changed |= sliderFloat("Мягкий газ (Alt)", "Сила газа и тормоза, пока зажат Alt", &layout.softTrigger, 0.1f,
+        changed |= sliderInt(tr("Плавность руля", "Steering smoothness"), tr("За сколько миллисекунд A/D доводят руль до упора (0 — сразу)", "Milliseconds for A/D to reach full lock (0 = instantly)"),
+                             &layout.steerRampMs, 0, 500, tr("%d мс", "%d ms"));
+        changed |= sliderFloat(tr("Мягкий газ (Alt)", "Soft throttle (Alt)"), tr("Сила газа и тормоза, пока зажат Alt", "Throttle and brake strength while Alt is held"), &layout.softTrigger, 0.1f,
                                1.0f, "%.2f");
     }
-    changed |= ImGui::Checkbox("Инвертировать ось Y", &m.invertY);
+    changed |= ImGui::Checkbox(tr("Инвертировать ось Y", "Invert Y axis"), &m.invertY);
 
     // Everything else: folded away.
     ImGui::Dummy(ImVec2(0, 4));
     ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
-    if (ImGui::CollapsingHeader("Тонкая настройка")) {
-        changed |= sliderFloat("Кривая", "1 — линейно; больше — точнее на медленных движениях", &m.exponent, 0.5f, 3.0f,
+    if (ImGui::CollapsingHeader(tr("Тонкая настройка", "Fine tuning"))) {
+        changed |= sliderFloat(tr("Кривая", "Curve"), tr("1 — линейно; больше — точнее на медленных движениях", "1 = linear; higher = more precise on slow moves"), &m.exponent, 0.5f, 3.0f,
                                "%.2f");
-        changed |= sliderFloat("Анти-мёртвая зона", "Сразу перепрыгивает мёртвую зону стика в игре", &m.antiDeadzone,
+        changed |= sliderFloat(tr("Анти-мёртвая зона", "Anti-deadzone"), tr("Сразу перепрыгивает мёртвую зону стика в игре", "Jumps straight past the game's stick deadzone"), &m.antiDeadzone,
                                0.0f, 0.5f, "%.2f");
-        changed |= sliderFloat("Макс. наклон", "Сильнее этого стик не отклоняется", &m.outerLimit, 0.5f, 1.0f, "%.2f");
-        changed |= sliderInt("Окно скорости", "Меньше — быстрее отклик, больше — плавнее", &m.windowMs, 2, 32, "%d мс");
-        changed |= sliderInt("Возврат в центр", "Через сколько стик встаёт в центр, когда мышь остановилась",
-                             &m.recenterMs, 2, 100, "%d мс");
+        changed |= sliderFloat(tr("Макс. наклон", "Max tilt"), tr("Сильнее этого стик не отклоняется", "The stick never tilts further than this"), &m.outerLimit, 0.5f, 1.0f, "%.2f");
+        changed |= sliderInt(tr("Окно скорости", "Speed window"), tr("Меньше — быстрее отклик, больше — плавнее", "Lower = faster response, higher = smoother"), &m.windowMs, 2, 32, tr("%d мс", "%d ms"));
+        changed |= sliderInt(tr("Возврат в центр", "Recenter"), tr("Через сколько стик встаёт в центр, когда мышь остановилась", "How soon the stick recenters once the mouse stops"),
+                             &m.recenterMs, 2, 100, tr("%d мс", "%d ms"));
         if (app.editClass == ControlClass::Foot)
-            changed |= sliderFloat("Шаг (Alt)", "Насколько наклоняется левый стик, пока зажат Alt", &layout.walkScale,
+            changed |= sliderFloat(tr("Шаг (Alt)", "Walk (Alt)"), tr("Насколько наклоняется левый стик, пока зажат Alt", "How far the left stick tilts while Alt is held"), &layout.walkScale,
                                    0.1f, 1.0f, "%.2f");
     }
     ImGui::PopStyleColor();
@@ -582,8 +598,10 @@ void drawMouse(App& app) {
         saveProfile(app);
         app.mouseDirty = false;
     }
-    if (!app.saveNote.empty()) noteText(app.saveNote == "Сохранено" ? "Сохранено автоматически" : app.saveNote,
-                                        app.saveNote == "Сохранено" ? col::Muted : col::Bad, f);
+    if (!app.saveNote.empty())
+        noteText(app.saveNote == "ok" ? tr("Сохранено автоматически", "Saved automatically")
+                                      : tr("Не удалось сохранить", "Couldn't save"),
+                 app.saveNote == "ok" ? col::Muted : col::Bad, f);
     for (const auto& w : app.profileWarnings) noteText(w, col::Warn, f);
     endCard();
 }
@@ -591,14 +609,14 @@ void drawMouse(App& app) {
 void drawLive(App& app) {
     const Fonts& f = app.fonts;
     const InputStats s = app.input->stats();
-    beginCard("##live", icon::Pulse, "Что уходит на PS5", f);
+    beginCard("##live", icon::Pulse, tr("Что уходит на PS5", "What goes to the PS5"), f);
     const float avail = ImGui::GetContentRegionAvail().x;
     const float radius = std::min(86.0f, (avail - 40) * 0.25f);
     const float gap = avail - radius * 4;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + gap / 3);
-    stickView("Левый", s.lastPad.left, radius, f);
+    stickView(tr("Левый", "Left"), s.lastPad.left, radius, f);
     ImGui::SameLine(0, gap / 3);
-    stickView("Правый", s.lastPad.right, radius, f);
+    stickView(tr("Правый", "Right"), s.lastPad.right, radius, f);
     ImGui::Dummy(ImVec2(0, 4));
     triggerBar("L2", s.lastPad.l2, f);
     triggerBar("R2", s.lastPad.r2, f);
@@ -610,22 +628,22 @@ void drawLive(App& app) {
     int pressed = 0;
     for (unsigned bits = s.lastPad.buttons; bits; bits &= bits - 1) ++pressed;
     std::snprintf(c, sizeof(c), "%d", pressed);
-    statTile("Мышь", a, "Гц", tileW, f);
+    statTile(tr("Мышь", "Mouse"), a, tr("Гц", "Hz"), tileW, f);
     ImGui::SameLine();
-    statTile("Опоздание тика", b, "мс", tileW, f);
+    statTile(tr("Опоздание тика", "Tick lateness"), b, tr("мс", "ms"), tileW, f);
     ImGui::SameLine();
-    statTile("Кнопки нажаты", c, "", tileW, f);
+    statTile(tr("Кнопки нажаты", "Buttons held"), c, "", tileW, f);
     endCard();
 }
 
 void drawNetwork(App& app) {
     const Fonts& f = app.fonts;
-    beginCard("##net", icon::Pulse, "Сеть до PS5", f);
+    beginCard("##net", icon::Pulse, tr("Сеть до PS5", "Network to PS5"), f);
     const NetQuality q = app.link->quality();
     const bool connected = app.link->state() == LinkState::Connected;
     if (!connected || q.grade == NetGrade::Unknown) {
-        mutedText(connected ? "Измеряю… первые цифры появятся через пару секунд."
-                            : "Появится после подключения к PS5: пинг, джиттер и потери, раз в 2 секунды.",
+        mutedText(connected ? tr("Измеряю… первые цифры появятся через пару секунд.", "Measuring… first numbers in a couple of seconds.")
+                            : tr("Появится после подключения к PS5: пинг, джиттер и потери, раз в 2 секунды.", "Shows up once connected to the PS5: ping, jitter and loss, every 2 seconds."),
                   f);
         endCard();
         return;
@@ -635,13 +653,13 @@ void drawNetwork(App& app) {
         ImU32 color;
         const char* advice;
     };
-    const Look look = q.grade == NetGrade::Excellent ? Look{"Отлично", col::Good, "Сеть не мешает."}
-                    : q.grade == NetGrade::Good      ? Look{"Хорошо", col::Good, "Задержка почти незаметна."}
+    const Look look = q.grade == NetGrade::Excellent ? Look{tr("Отлично", "Excellent"), col::Good, tr("Сеть не мешает.", "The network is not in the way.")}
+                    : q.grade == NetGrade::Good      ? Look{tr("Хорошо", "Good"), col::Good, tr("Задержка почти незаметна.", "Delay is barely noticeable.")}
                     : q.grade == NetGrade::Fair
-                        ? Look{"Терпимо", col::Warn,
-                               "Управление может временами «вязнуть». Wi-Fi 5 ГГц, роутер ближе или кабель помогут."}
-                        : Look{"Плохо", col::Bad,
-                               "Заметные рывки и задержки. Подключите PS5 кабелем или к Wi-Fi 5 ГГц рядом с роутером."};
+                        ? Look{tr("Терпимо", "Fair"), col::Warn,
+                               tr("Управление может временами «вязнуть». Wi-Fi 5 ГГц, роутер ближе или кабель помогут.", "Controls may feel sluggish at times. 5 GHz Wi-Fi, a closer router or a cable will help.")}
+                        : Look{tr("Плохо", "Poor"), col::Bad,
+                               tr("Заметные рывки и задержки. Подключите PS5 кабелем или к Wi-Fi 5 ГГц рядом с роутером.", "Noticeable stutter and delay. Connect the PS5 by cable or to 5 GHz Wi-Fi near the router.")};
     pill(look.text, look.color, f.semibold);
     ImGui::Dummy(ImVec2(0, 2));
     const float tileW = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x * 2) / 3;
@@ -649,13 +667,13 @@ void drawNetwork(App& app) {
     std::snprintf(a, sizeof(a), "%.0f", q.pingMs);
     std::snprintf(b, sizeof(b), "%.0f", q.jitterMs);
     std::snprintf(c, sizeof(c), "%.1f", std::max(q.probeLossPct, q.frameLossPct));
-    statTile("Пинг", a, "мс", tileW, f);
+    statTile(tr("Пинг", "Ping"), a, tr("мс", "ms"), tileW, f);
     ImGui::SameLine();
-    statTile("Джиттер", b, "мс", tileW, f);
+    statTile(tr("Джиттер", "Jitter"), b, tr("мс", "ms"), tileW, f);
     ImGui::SameLine();
-    statTile("Потери", c, "%", tileW, f);
+    statTile(tr("Потери", "Loss"), c, "%", tileW, f);
     mutedText(look.advice, f);
-    mutedText("Это задержка сети между ПК и PS5, без учёта игры и монитора.", f);
+    mutedText(tr("Это задержка сети между ПК и PS5, без учёта игры и монитора.", "This is the network delay between the PC and the PS5, not counting the game and monitor."), f);
     endCard();
 }
 
@@ -666,10 +684,10 @@ void drawSidebar(App& app) {
         const char* iconGlyph;
         const char* title;
     };
-    static const Item items[] = {
-        {Page::Home, icon::Home, "Главная"},     {Page::Mouse, icon::Mouse, "Мышь"},
-        {Page::Keys, icon::Keyboard, "Раскладка"}, {Page::Record, icon::Record, "Запись"},
-        {Page::Help, icon::Help, "Справка"},
+    const Item items[] = {
+        {Page::Home, icon::Home, tr("Главная", "Home")},     {Page::Mouse, icon::Mouse, tr("Мышь", "Mouse")},
+        {Page::Keys, icon::Keyboard, tr("Раскладка", "Keys")}, {Page::Record, icon::Record, tr("Запись", "Recording")},
+        {Page::Help, icon::Help, tr("Справка", "Help")},
     };
     ImGui::BeginChild("##nav", ImVec2(200, 0), ImGuiChildFlags_None, ImGuiWindowFlags_NoBackground);
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -695,11 +713,11 @@ void drawSidebar(App& app) {
 
 void drawFirstSteps(App& app) {
     const Fonts& f = app.fonts;
-    beginCard("##steps", icon::Help, "Как начать", f);
-    static const char* steps[] = {
-        "Привяжите PS5: адрес, account ID и PIN из «Настройки → Система → Дистанционное воспроизведение».",
-        "Нажмите F8 — клавиатура и мышь начнут управлять PS5.",
-        "Переключите монитор на вход PS5 и играйте. F8 ещё раз — вернуть их компьютеру.",
+    beginCard("##steps", icon::Help, tr("Как начать", "Getting started"), f);
+    const char* steps[] = {
+        tr("Привяжите PS5: адрес, account ID и PIN из «Настройки → Система → Дистанционное воспроизведение».", "Pair the PS5: address, Account ID and the PIN from \"Settings → System → Remote Play\"."),
+        tr("Нажмите F8 — клавиатура и мышь начнут управлять PS5.", "Press F8 — the keyboard and mouse start driving the PS5."),
+        tr("Переключите монитор на вход PS5 и играйте. F8 ещё раз — вернуть их компьютеру.", "Switch the monitor to the PS5 input and play. F8 again gives them back to the PC."),
     };
     for (int i = 0; i < 3; ++i) {
         const ImVec2 p = ImGui::GetCursorScreenPos();
@@ -715,27 +733,27 @@ void drawFirstSteps(App& app) {
         ImGui::PopTextWrapPos();
         ImGui::Dummy(ImVec2(0, 4));
     }
-    mutedText("Настройки мыши, раскладка и запись — в меню слева.", f);
+    mutedText(tr("Настройки мыши, раскладка и запись — в меню слева.", "Mouse settings, keys and recording are in the menu on the left."), f);
     endCard();
 }
 
 void drawKeys(App& app) {
     const Fonts& f = app.fonts;
-    beginCard("##keys", icon::Keyboard, "Горячие клавиши", f);
-    if (primaryButton((std::string(icon::Help) + "  Подсказка: кнопки геймпада → клавиши").c_str(), -FLT_MIN))
+    beginCard("##keys", icon::Keyboard, tr("Горячие клавиши", "Hotkeys"), f);
+    if (primaryButton((std::string(icon::Help) + tr("  Подсказка: кнопки геймпада → клавиши", "  Hint: controller buttons → keys")).c_str(), -FLT_MIN))
         openHint(app);
     ImGui::Dummy(ImVec2(0, 4));
     struct Row {
         const char* key;
         const char* what;
     };
-    static const Row rows[] = {
-        {"F8", "захват вкл / выкл"},
-        {"WASD", "движение"},
-        {"LAlt", "шаг"},
-        {"ЛКМ / ПКМ", "R2 / L2"},
-        {"F9", "кнопка PS (держать — забрать управление консолью)"},
-        {"F1–F5", "режим: пешком, наземный, вода, вертолёт, самолёт (временно, до автоопределения)"},
+    const Row rows[] = {
+        {"F8", tr("захват вкл / выкл", "capture on / off")},
+        {"WASD", tr("движение", "move")},
+        {"LAlt", tr("шаг", "walk")},
+        {tr("ЛКМ / ПКМ", "LMB / RMB"), "R2 / L2"},
+        {"F9", tr("кнопка PS (держать — забрать управление консолью)", "PS button (hold to take over the console)")},
+        {"F1–F5", tr("режим: пешком, наземный, вода, вертолёт, самолёт (временно, до автоопределения)", "mode: on foot, ground, water, helicopter, plane")},
     };
     for (const Row& r : rows) {
         keycap(r.key, f.tiny);
@@ -750,10 +768,10 @@ void drawKeys(App& app) {
 
 const char* padButtonRu(Action a) {
     switch (a) {
-        case Action::Cross: return "Крест";
-        case Action::Circle: return "Круг";
-        case Action::Square: return "Квадрат";
-        case Action::Triangle: return "Треугольник";
+        case Action::Cross: return tr("Крест", "Cross");
+        case Action::Circle: return tr("Круг", "Circle");
+        case Action::Square: return tr("Квадрат", "Square");
+        case Action::Triangle: return tr("Треугольник", "Triangle");
         case Action::DpadUp: return "D-pad ↑";
         case Action::DpadDown: return "D-pad ↓";
         case Action::DpadLeft: return "D-pad ←";
@@ -764,16 +782,16 @@ const char* padButtonRu(Action a) {
         case Action::R3: return "R3";
         case Action::Options: return "Options";
         case Action::Create: return "Create";
-        case Action::Touchpad: return "Тачпад";
+        case Action::Touchpad: return tr("Тачпад", "Touchpad");
         case Action::PS: return "PS";
         case Action::L2: return "L2";
         case Action::R2: return "R2";
-        case Action::MoveUp: return "Л. стик ↑";
-        case Action::MoveDown: return "Л. стик ↓";
-        case Action::MoveLeft: return "Л. стик ←";
-        case Action::MoveRight: return "Л. стик →";
-        case Action::Walk: return "модификатор";
-        case Action::Soft: return "модификатор";
+        case Action::MoveUp: return tr("Л. стик ↑", "L stick ↑");
+        case Action::MoveDown: return tr("Л. стик ↓", "L stick ↓");
+        case Action::MoveLeft: return tr("Л. стик ←", "L stick ←");
+        case Action::MoveRight: return tr("Л. стик →", "L stick →");
+        case Action::Walk: return tr("модификатор", "modifier");
+        case Action::Soft: return tr("модификатор", "modifier");
         case Action::Count: break;
     }
     return "";
@@ -786,69 +804,71 @@ const char* actionMeaningRu(ControlClass c, Action a) {
     const bool air = c == ControlClass::Heli || c == ControlClass::Plane;
     const bool vehicle = c == ControlClass::Ground || c == ControlClass::Water;
     switch (a) {
-        case Action::MoveUp: return air ? "тангаж вперёд (обычно мышь)" : vehicle ? "наклон вперёд (мото, велосипед)" : "вперёд";
-        case Action::MoveDown: return air ? "тангаж назад (обычно мышь)" : vehicle ? "наклон назад (мото, велосипед)" : "назад";
-        case Action::MoveLeft: return air ? "крен влево (обычно мышь)" : vehicle ? "повернуть влево" : "влево";
-        case Action::MoveRight: return air ? "крен вправо (обычно мышь)" : vehicle ? "повернуть вправо" : "вправо";
-        case Action::Walk: return "шаг: стик наклоняется не до конца";
-        case Action::Soft: return "мягкий газ / тормоз (L2, R2 не в пол)";
+        case Action::MoveUp: return air ? tr("тангаж вперёд (обычно мышь)", "pitch down (usually the mouse)") : vehicle ? tr("наклон вперёд (мото, велосипед)", "lean forward (bike)") : tr("вперёд", "forward");
+        case Action::MoveDown: return air ? tr("тангаж назад (обычно мышь)", "pitch up (usually the mouse)") : vehicle ? tr("наклон назад (мото, велосипед)", "lean back (bike)") : tr("назад", "back");
+        case Action::MoveLeft: return air ? tr("крен влево (обычно мышь)", "roll left (usually the mouse)") : vehicle ? tr("повернуть влево", "steer left") : tr("влево", "left");
+        case Action::MoveRight: return air ? tr("крен вправо (обычно мышь)", "roll right (usually the mouse)") : vehicle ? tr("повернуть вправо", "steer right") : tr("вправо", "right");
+        case Action::Walk: return tr("шаг: стик наклоняется не до конца", "walk: the stick tilts only partway");
+        case Action::Soft: return tr("мягкий газ / тормоз (L2, R2 не в пол)", "soft throttle / brake (L2, R2 not fully pressed)");
         case Action::R2:
-            return air ? "прибавить газ" : vehicle ? "ускорение; велосипед — педали"
-                                                   : "выстрелить; ближний бой — схватить; парашют — правая клеванта";
+            return air ? tr("прибавить газ", "throttle up") : vehicle ? tr("ускорение; велосипед — педали", "accelerate; bicycle — pedal")
+                                                   : tr("выстрелить; ближний бой — схватить; парашют — правая клеванта", "shoot; melee — grab; parachute — right brake");
         case Action::L2:
-            return air ? "сбросить газ" : vehicle ? "тормоз / задний ход"
-                                                  : "прицеливание / взаимодействие; бой — захват цели; парашют — левая клеванта";
+            return air ? tr("сбросить газ", "throttle down") : vehicle ? tr("тормоз / задний ход", "brake / reverse")
+                                                  : tr("прицеливание / взаимодействие; бой — захват цели; парашют — левая клеванта", "aim / interact; melee — lock on; parachute — left brake");
         case Action::Cross:
-            return air ? "—" : vehicle ? "ручной тормоз; велосипед — ускорение"
-                                       : "прыжок / лазание; бой — блок; вода — вынырнуть; парашют — раскрыть";
+            return air ? "—" : vehicle ? tr("ручной тормоз; велосипед — ускорение", "handbrake; bicycle — sprint")
+                                       : tr("прыжок / лазание; бой — блок; вода — вынырнуть; парашют — раскрыть", "jump / climb; melee — block; swimming — surface; parachute — deploy");
         case Action::Circle:
-            return air ? "курс вправо" : vehicle ? "фары (держать — пригнуться); велосипед — прыжок"
-                                                 : "присесть (держать — отдохнуть)";
-        case Action::Square: return air ? "курс влево" : "ближний бой";
+            return air ? tr("курс вправо", "yaw right") : vehicle ? tr("фары (держать — пригнуться); велосипед — прыжок", "headlights (hold — duck); bicycle — jump")
+                                                 : tr("присесть (держать — отдохнуть)", "crouch (hold — rest)");
+        case Action::Square: return air ? tr("курс влево", "yaw left") : tr("ближний бой", "melee");
         case Action::Triangle:
-            return c == ControlClass::Plane ? "покинуть транспорт; на воде — взлёт"
-                   : air                    ? "покинуть транспорт"
-                   : vehicle                ? "покинуть транспорт; велосипед — слезть"
-                                            : "взаимодействовать; с прицелом — быстрая смена оружия; парашют — отцепить";
-        case Action::R1: return vehicle || air ? "выстрелить" : "укрытие; с прицелом — быстрый бросок; вода — нырнуть";
-        case Action::L1: return vehicle || air ? "кобура / снаряжение" : "снаряжение (держать — колесо оружия)";
+            return c == ControlClass::Plane ? tr("покинуть транспорт; на воде — взлёт", "exit vehicle; on water — take off")
+                   : air                    ? tr("покинуть транспорт", "exit vehicle")
+                   : vehicle                ? tr("покинуть транспорт; велосипед — слезть", "exit vehicle; bicycle — get off")
+                                            : tr("взаимодействовать; с прицелом — быстрая смена оружия; парашют — отцепить", "interact; aiming — quick weapon swap; parachute — detach");
+        case Action::R1: return vehicle || air ? tr("выстрелить", "shoot") : tr("укрытие; с прицелом — быстрый бросок; вода — нырнуть", "cover; aiming — quick throw; swimming — dive");
+        case Action::L1: return vehicle || air ? tr("кобура / снаряжение", "holster / loadout") : tr("снаряжение (держать — колесо оружия)", "loadout (hold — weapon wheel)");
         case Action::L3:
-            return air ? "шасси" : vehicle ? "клаксон / закись азота; велосипед — звонок"
-                                           : "бег (ещё раз — спринт); вода — быстрое плавание";
-        case Action::R3: return vehicle || air ? "посмотреть назад" : "посмотреть назад; с прицелом — траектория броска";
+            return air ? tr("шасси", "landing gear") : vehicle ? tr("клаксон / закись азота; велосипед — звонок", "horn / nitrous; bicycle — bell")
+                                           : tr("бег (ещё раз — спринт); вода — быстрое плавание", "run (again — sprint); swimming — fast swim");
+        case Action::R3: return vehicle || air ? tr("посмотреть назад", "look behind") : tr("посмотреть назад; с прицелом — траектория броска", "look behind; aiming — throw arc");
         case Action::DpadUp:
-            return air ? "мобильный телефон" : vehicle ? "телефон / взаимодействовать"
-                                                       : "телефон / WAiNK; с прицелом — увеличить кратность";
+            return air ? tr("мобильный телефон", "mobile phone") : vehicle ? tr("телефон / взаимодействовать", "phone / interact")
+                                                       : tr("телефон / WAiNK; с прицелом — увеличить кратность", "phone / WAiNK; aiming — zoom in");
         case Action::DpadDown:
-            return vehicle || air ? "цель, мини-карта / быстрая навигация"
-                                  : "цель, мини-карта / быстрая навигация; с прицелом — уменьшить кратность";
+            return vehicle || air ? tr("цель, мини-карта / быстрая навигация", "objective, minimap / quick navigation")
+                                  : tr("цель, мини-карта / быстрая навигация; с прицелом — уменьшить кратность", "objective, minimap / quick navigation; aiming — zoom out");
         case Action::DpadLeft:
-            return air ? "радио / меню транспорта" : vehicle ? "левый поворотник / меню транспорта"
-                                                             : "меню радио; с прицелом — сменить плечо";
+            return air ? tr("радио / меню транспорта", "radio / vehicle menu") : vehicle ? tr("левый поворотник / меню транспорта", "left indicator / vehicle menu")
+                                                             : tr("меню радио; с прицелом — сменить плечо", "radio menu; aiming — swap shoulder");
         case Action::DpadRight:
-            return air ? "меню партнёра" : vehicle ? "правый поворотник / меню партнёра"
-                                                   : "меню партнёра; с прицелом — подорвать";
-        case Action::Options: return "пауза";
-        case Action::Create: return "скриншот / запись";
-        case Action::Touchpad: return "карта";
-        case Action::PS: return "меню PS5";
+            return air ? tr("меню партнёра", "partner menu") : vehicle ? tr("правый поворотник / меню партнёра", "right indicator / partner menu")
+                                                   : tr("меню партнёра; с прицелом — подорвать", "partner menu; aiming — detonate");
+        case Action::Options: return tr("пауза", "pause");
+        case Action::Create: return tr("скриншот / запись", "screenshot / record");
+        case Action::Touchpad: return tr("карта", "map");
+        case Action::PS: return tr("меню PS5", "PS5 menu");
         case Action::Count: break;
     }
     return "";
 }
 
-std::string keyLabel(InputCode c);  // "ЛКМ", "Колесо", "↑": defined with the hint below
+std::string keyLabel(InputCode c);  // tr("ЛКМ", "LMB"), tr("Колесо", "Wheel"), "↑": defined with the hint below
 
 void drawBindings(App& app) {
     const Fonts& f = app.fonts;
-    beginCard("##keys_edit", icon::Keyboard, "Раскладка клавиш", f);
-    mutedText("Кликните по клавише и нажмите новую: клавиатура, кнопка или колёсико мыши. "
-              "Esc — отмена, Backspace — очистить. Сохраняется сразу.",
+    beginCard("##keys_edit", icon::Keyboard, tr("Раскладка клавиш", "Key bindings"), f);
+    mutedText(tr("Кликните по клавише и нажмите новую: клавиатура, кнопка или колёсико мыши. "
+                 "Esc — отмена, Backspace — очистить. Сохраняется сразу.",
+                 "Click a key and press a new one: keyboard, mouse button or wheel. "
+                 "Esc cancels, Backspace clears. Saved at once."),
               f);
     if (ImGui::BeginTabBar("##keys_classes")) {
         for (size_t i = 0; i < kControlClassCount; ++i) {
             const auto c = static_cast<ControlClass>(i);
-            const std::string title = std::string(controlClassTitleRu(c)) + "##k";
+            const std::string title = std::string(controlClassTitle(c)) + "##k";
             if (ImGui::BeginTabItem(title.c_str())) {
                 if (app.keysClass != c) app.bindWaiting = false;
                 app.keysClass = c;
@@ -862,10 +882,10 @@ void drawBindings(App& app) {
     ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(14, 4));
     if (ImGui::BeginTable("##keys_table", 4,
                           ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_PadOuterX)) {
-        ImGui::TableSetupColumn("Действие", ImGuiTableColumnFlags_WidthStretch, 2.2f);
-        ImGui::TableSetupColumn("Кнопка", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Клавиша", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-        ImGui::TableSetupColumn("Ещё", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn(tr("Действие", "Action"), ImGuiTableColumnFlags_WidthStretch, 2.2f);
+        ImGui::TableSetupColumn(tr("Кнопка", "Button"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn(tr("Клавиша", "Key"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+        ImGui::TableSetupColumn(tr("Ещё", "Alt key"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
         for (size_t i = 0; i < kActionCount; ++i) {
             const auto a = static_cast<Action>(i);
             ImGui::TableNextRow();
@@ -881,7 +901,7 @@ void drawBindings(App& app) {
                 ImGui::TableNextColumn();
                 const InputCode code = layout.bindings.slots[i][s];
                 const bool waiting = app.bindWaiting && app.bindAction == a && app.bindSlot == s;
-                std::string label = waiting ? "нажмите…" : code ? keyLabel(code) : "—";
+                std::string label = waiting ? tr("нажмите…", "press…") : code ? keyLabel(code) : "—";
                 label += "##b" + std::to_string(i * 2 + s);
                 if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
                 if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)) && !app.input->captured()) {
@@ -1044,16 +1064,16 @@ bool padAnchor(Action a, ImVec2* at) {
     }
 }
 
-// Keys as people say them: "ЛКМ" rather than "Mouse1".
+// Keys as people say them: tr("ЛКМ", "LMB") rather than "Mouse1".
 std::string keyLabel(InputCode c) {
     switch (c) {
-        case code::MouseLeft: return "ЛКМ";
-        case code::MouseRight: return "ПКМ";
-        case code::MouseMiddle: return "Колесо";
-        case code::MouseX1: return "Мышь 4";
-        case code::MouseX2: return "Мышь 5";
-        case code::WheelUp: return "Колесо ↑";
-        case code::WheelDown: return "Колесо ↓";
+        case code::MouseLeft: return tr("ЛКМ", "LMB");
+        case code::MouseRight: return tr("ПКМ", "RMB");
+        case code::MouseMiddle: return tr("Колесо", "Wheel");
+        case code::MouseX1: return tr("Мышь 4", "Mouse 4");
+        case code::MouseX2: return tr("Мышь 5", "Mouse 5");
+        case code::WheelUp: return tr("Колесо ↑", "Wheel ↑");
+        case code::WheelDown: return tr("Колесо ↓", "Wheel ↓");
         case vk::Up: return "↑";
         case vk::Down: return "↓";
         case vk::Left: return "←";
@@ -1103,23 +1123,23 @@ void hintRows(ControlClass c, const Layout& l, std::vector<HintRow>& left, std::
                      Action::Square, Action::R3, Action::PS})
         add(right, a);
     if (l.mouseTarget == MouseTarget::LeftStick) {
-        left.push_back({kLeftStick, {"Мышь"}, "Тангаж / крен"});
+        left.push_back({kLeftStick, {tr("Мышь", "Mouse")}, tr("Тангаж / крен", "Pitch / roll")});
     } else {
         if (c == ControlClass::Ground || c == ControlClass::Water) {
             if (auto k = firstKeys({Action::MoveLeft, Action::MoveRight}); !k.empty())
-                left.push_back({kLeftStick, std::move(k), "Руль"});
+                left.push_back({kLeftStick, std::move(k), tr("Руль", "Steering")});
             if (auto k = firstKeys({Action::MoveUp, Action::MoveDown}); !k.empty())
-                left.push_back({kLeftStick, std::move(k), "Наклон (мото, велосипед)"});
+                left.push_back({kLeftStick, std::move(k), tr("Наклон (мото, велосипед)", "Lean (bike)")});
         } else if (auto k = firstKeys({Action::MoveUp, Action::MoveLeft, Action::MoveDown, Action::MoveRight});
                    !k.empty()) {
-            left.push_back({kLeftStick, std::move(k), "Движение"});
+            left.push_back({kLeftStick, std::move(k), tr("Движение", "Move")});
         }
-        right.push_back({kRightStick, {"Мышь"}, "Обзор"});
+        right.push_back({kRightStick, {tr("Мышь", "Mouse")}, tr("Обзор", "Look")});
     }
     // Our own modifiers: no button on the controller, so no leader line.
-    if (auto k = boundKeys(l, Action::Walk); !k.empty()) left.push_back({Action::Walk, std::move(k), "Шагом"});
+    if (auto k = boundKeys(l, Action::Walk); !k.empty()) left.push_back({Action::Walk, std::move(k), tr("Шагом", "Walk")});
     if (auto k = boundKeys(l, Action::Soft); !k.empty())
-        left.push_back({Action::Soft, std::move(k), "Мягкий газ / тормоз"});
+        left.push_back({Action::Soft, std::move(k), tr("Мягкий газ / тормоз", "Soft throttle / brake")});
 }
 
 constexpr float kCapPad = 8, kCapGap = 4, kGlyphW = 26;
@@ -1215,21 +1235,21 @@ void drawHint(App& app) {
     const float closeW = 110;
     const float top = ImGui::GetCursorPosY();
     ImGui::PushFont(f.title);
-    ImGui::TextUnformatted("Подсказка");
+    ImGui::TextUnformatted(tr("Подсказка", "Hint"));
     ImGui::PopFont();
     ImGui::PushFont(f.tiny);
     ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
-    ImGui::TextUnformatted("Кнопка из подсказок GTA 6 → ваша клавиша. Клавиши меняются на странице «Раскладка».");
+    ImGui::TextUnformatted(tr("Кнопка из подсказок GTA 6 → ваша клавиша. Клавиши меняются на странице «Раскладка».", "Button from GTA 6 prompts → your key. Change keys on the \"Keys\" page."));
     ImGui::PopStyleColor();
     ImGui::PopFont();
     ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - closeW, top));
-    if (ghostButton("Закрыть  Esc", closeW) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+    if (ghostButton(tr("Закрыть  Esc", "Close  Esc"), closeW) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
     ImGui::SetCursorPosY(top + 64);
 
     if (ImGui::BeginTabBar("##hint_tabs")) {
         for (size_t i = 0; i < kControlClassCount; ++i) {
             const auto c = static_cast<ControlClass>(i);
-            const std::string title = std::string(controlClassTitleRu(c)) + "   F" + std::to_string(i + 1) + "##h";
+            const std::string title = std::string(controlClassTitle(c)) + "   F" + std::to_string(i + 1) + "##h";
             const ImGuiTabItemFlags flags =
                 app.hintSelectTab && c == app.hintClass ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
             if (ImGui::BeginTabItem(title.c_str(), nullptr, flags)) {
@@ -1279,8 +1299,8 @@ void drawHint(App& app) {
         const char* key;
         const char* what;
     };
-    static const Tip tips[] = {{"F8", "захват вкл / выкл"}, {"F1–F5", "режим, как на вкладках"},
-                               {"F9", "кнопка PS (держать)"}};
+    const Tip tips[] = {{"F8", tr("захват вкл / выкл", "capture on / off")}, {"F1–F5", tr("режим, как на вкладках", "mode, as on the tabs")},
+                               {"F9", tr("кнопка PS (держать)", "PS button (hold)")}};
     for (const Tip& t : tips) {
         keycap(t.key, f.tiny);
         ImGui::SameLine(0, 8);
@@ -1312,14 +1332,16 @@ std::filesystem::path newRecordingDir() {
 void drawRecord(App& app) {
     const Fonts& f = app.fonts;
     const bool on = app.recorder.recording();
-    beginCard("##rec", icon::Record, "Запись для обучения", f);
-    mutedText("Пишет видео 360p, вибрацию и триггеры от игры, чтобы научить программу саму понимать: пешком, "
-              "машина, лодка, вертолёт или самолёт. Играйте как обычно, по 3–5 минут на каждый тип.",
+    beginCard("##rec", icon::Record, tr("Запись для обучения", "Training recording"), f);
+    mutedText(tr("Пишет видео 360p, вибрацию и триггеры от игры, чтобы научить программу саму понимать: пешком, "
+                 "машина, лодка, вертолёт или самолёт. Играйте как обычно, по 3–5 минут на каждый тип.",
+                 "Records 360p video, rumble and trigger effects from the game to teach the app to tell by itself: on foot, "
+                 "car, boat, helicopter or plane. Play as usual, 3–5 minutes of each."),
               f);
     ImGui::Dummy(ImVec2(0, 2));
     if (!on) {
         ImGui::BeginDisabled(app.consoleOnly);
-        const std::string label = std::string("●  Начать запись");
+        const std::string label = std::string(tr("●  Начать запись", "●  Start recording"));
         if (primaryButton(label.c_str(), -FLT_MIN)) {
             app.recordError.clear();
             if (app.recorder.start(newRecordingDir(), &app.recordError)) app.link->requestKeyframe();
@@ -1329,22 +1351,22 @@ void drawRecord(App& app) {
         ImGui::PushStyleColor(ImGuiCol_Button, toVec4(withAlpha(col::Bad, 60)));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, toVec4(withAlpha(col::Bad, 100)));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, toVec4(withAlpha(col::Bad, 140)));
-        const std::string label = std::string("■  Остановить запись");
+        const std::string label = std::string(tr("■  Остановить запись", "■  Stop recording"));
         if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0))) app.recorder.stop();
         ImGui::PopStyleColor(3);
     }
     const Recorder::Stats s = app.recorder.stats();
     if (on || s.framesWritten) {
         char line[160];
-        std::snprintf(line, sizeof(line), "%s%llu кадров · %.1f МБ · %llu событий%s", on ? "● " : "",
+        std::snprintf(line, sizeof(line), tr("%s%llu кадров · %.1f МБ · %llu событий%s", "%s%llu frames · %.1f MB · %llu events%s"), on ? "● " : "",
                       static_cast<unsigned long long>(s.framesWritten), s.bytesWritten / 1048576.0,
                       static_cast<unsigned long long>(s.events),
-                      on && s.framesWritten == 0 ? " · жду опорный кадр от PS5…" : "");
+                      on && s.framesWritten == 0 ? tr(" · жду опорный кадр от PS5…", " · waiting for a keyframe from the PS5…") : "");
         noteText(line, on ? col::Bad : col::Muted, f);
         const std::u8string folder8 = app.recorder.directory().u8string();
         const std::string folder(folder8.begin(), folder8.end());
         mutedText(folder.c_str(), f);
-        if (!on && ghostButton((std::string(icon::Folder) + "  Открыть папку").c_str()))
+        if (!on && ghostButton((std::string(icon::Folder) + tr("  Открыть папку", "  Open folder")).c_str()))
             ShellExecuteW(nullptr, L"open", app.recorder.directory().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
     noteText(app.recordError, col::Bad, f);
@@ -1367,8 +1389,21 @@ void loadProfile(App& app) {
         app.profile = *p;
     } else {
         app.profile = defaultGtaProfile();
-        app.profileWarnings.push_back("Профиль повреждён — загружен профиль по умолчанию (файл не тронут).");
+        app.profileWarnings.push_back(tr("Профиль повреждён — загружен профиль по умолчанию (файл не тронут).", "The profile is damaged — loaded the default one (the file is untouched)."));
     }
+}
+
+void loadLanguage(App& app) {
+    const Lang system = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_RUSSIAN ? Lang::Ru : Lang::En;
+    std::string code;
+    if (std::ifstream f(app.langPath); f) std::getline(f, code);
+    setUiLang(langFromCode(code, system));
+}
+
+void saveLanguage(App& app) {
+    std::error_code ec;
+    std::filesystem::create_directories(app.langPath.parent_path(), ec);
+    std::ofstream(app.langPath, std::ios::trunc) << langCode(uiLang());
 }
 
 void saveProfile(App& app) {
@@ -1376,7 +1411,7 @@ void saveProfile(App& app) {
     std::filesystem::create_directories(app.profilePath.parent_path(), ec);
     std::ofstream f(app.profilePath, std::ios::binary | std::ios::trunc);
     f << profileToJson(app.profile);
-    app.saveNote = f ? "Сохранено" : "Не удалось сохранить";
+    app.saveNote = f ? "ok" : "failed";
 }
 
 void startCapture(App& app) {
@@ -1451,11 +1486,11 @@ void finishBinding(App& app, std::optional<InputCode> code, bool clear) {
     app.bindWaiting = false;
     if (!code && !clear) return;  // cancelled
     if (code && (*code == vk::F8 || (*code >= vk::F1 && *code <= vk::F1 + 4))) {
-        app.bindNote = "F1–F5 и F8 заняты программой: выберите другую клавишу.";
+        app.bindNote = tr("F1–F5 и F8 заняты программой: выберите другую клавишу.", "F1–F5 and F8 are taken by the app: pick another key.");
         return;
     }
     if (code && inputCodeName(*code).empty()) {
-        app.bindNote = "Эту клавишу пока нельзя назначить.";
+        app.bindNote = tr("Эту клавишу пока нельзя назначить.", "This key can't be assigned yet.");
         return;
     }
     auto& slot = app.profile.layout(app.keysClass).bindings.slots[static_cast<size_t>(app.bindAction)];

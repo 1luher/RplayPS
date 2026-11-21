@@ -12,6 +12,7 @@
 #include <backends/imgui_impl_win32.h>
 
 #include "app/ui.h"
+#include "core/lang.h"
 #include "win/audio_out.h"
 #include "win/sound.h"
 
@@ -182,7 +183,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     styleTitleBar(hwnd);
     if (!createDevice(hwnd)) {
         cleanupDevice();
-        MessageBoxW(nullptr, L"Не удалось запустить Direct3D 11.", L"RPlay K&M", MB_ICONERROR);
+        MessageBoxW(nullptr, uiLang() == Lang::Ru ? L"Не удалось запустить Direct3D 11." : L"Couldn't start Direct3D 11.",
+                    L"RPlay K&M", MB_ICONERROR);
         return 1;
     }
     ShowWindow(hwnd, SW_SHOWDEFAULT);
@@ -203,6 +205,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int) {
     const auto dir = appDataDir();
     app.pairingPath = dir / L"pairing.bin";
     app.profilePath = dir / L"profiles" / L"gta6-classes.json";  // v2: one layout per class
+    app.langPath = dir / L"lang.txt";
+    loadLanguage(app);
     loadProfile(app);
     app.pairing = loadPairing(app.pairingPath);
 

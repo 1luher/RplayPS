@@ -35,6 +35,7 @@ constexpr const char* Record = "\xEE\x9F\x88";     // U+E7C8
 constexpr const char* Folder = "\xEE\xA0\xB8";     // U+E838
 constexpr const char* Home = "\xEE\xA0\x8F";       // U+E80F
 constexpr const char* Help = "\xEE\xA2\x97";       // U+E897
+constexpr const char* Globe = "\xEE\x9D\xB4";      // U+E774
 }  // namespace icon
 
 struct Fonts {

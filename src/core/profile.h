@@ -15,7 +15,7 @@
 enum class ControlClass : std::uint8_t { Foot, Ground, Water, Heli, Plane, Count };
 constexpr std::size_t kControlClassCount = static_cast<std::size_t>(ControlClass::Count);
 std::string_view controlClassName(ControlClass c);  // "foot", "ground", "water", "heli", "plane"
-std::string_view controlClassTitleRu(ControlClass c);
+std::string_view controlClassTitle(ControlClass c);  // in the interface language
 std::optional<ControlClass> parseControlClass(std::string_view name);
 
 // Where mouse movement goes: the camera (right stick) or, in the air, pitch/roll (left stick).

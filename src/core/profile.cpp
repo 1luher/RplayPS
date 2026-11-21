@@ -5,12 +5,15 @@
 
 #include <nlohmann/json.hpp>
 
+#include "core/lang.h"
+
 using nlohmann::json;
 
 namespace {
 
 constexpr std::string_view kClassNames[kControlClassCount] = {"foot", "ground", "water", "heli", "plane"};
-constexpr std::string_view kClassTitles[kControlClassCount] = {"Пешком", "Наземный", "Вода", "Вертолёт", "Самолёт"};
+constexpr const char* kClassTitlesRu[kControlClassCount] = {"Пешком", "Наземный", "Вода", "Вертолёт", "Самолёт"};
+constexpr const char* kClassTitlesEn[kControlClassCount] = {"On foot", "Ground", "Water", "Helicopter", "Plane"};
 
 void warn(std::vector<std::string>* w, std::string text) {
     if (w) w->push_back(std::move(text));
@@ -21,7 +24,7 @@ void readNumber(const json& obj, const char* key, T& out, std::vector<std::strin
     if (!obj.contains(key)) return;
     const json& v = obj[key];
     if (!v.is_number()) {
-        warn(w, std::string("Профиль: «") + key + "» должно быть числом, значение пропущено.");
+        warn(w, std::string(tr("Профиль: «", "Profile: \"")) + key + tr("» должно быть числом, значение пропущено.", "\" must be a number, value skipped."));
         return;
     }
     const double d = std::clamp(v.get<double>(), -1e6, 1e6);  // no UB on huge values
@@ -32,7 +35,7 @@ void readBool(const json& obj, const char* key, bool& out, std::vector<std::stri
     if (!obj.contains(key)) return;
     const json& v = obj[key];
     if (!v.is_boolean()) {
-        warn(w, std::string("Профиль: «") + key + "» должно быть true или false, значение пропущено.");
+        warn(w, std::string(tr("Профиль: «", "Profile: \"")) + key + tr("» должно быть true или false, значение пропущено.", "\" must be true or false, value skipped."));
         return;
     }
     out = v.get<bool>();
@@ -164,7 +167,7 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
         else if (t == "right")
             l.mouseTarget = MouseTarget::RightStick;
         else
-            warn(w, "Профиль: «mouse_target» должно быть \"left\" или \"right\", значение пропущено.");
+            warn(w, tr("Профиль: «mouse_target» должно быть \"left\" или \"right\", значение пропущено.", "Profile: \"mouse_target\" must be \"left\" or \"right\", value skipped."));
     }
     if (j.contains("mouse") && j["mouse"].is_object()) {
         const json& m = j["mouse"];
@@ -181,7 +184,7 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
 
     if (!j.contains("bindings")) return;
     if (!j["bindings"].is_object()) {
-        warn(w, "Профиль: «bindings» должно быть объектом, пропущено.");
+        warn(w, tr("Профиль: «bindings» должно быть объектом, пропущено.", "Profile: \"bindings\" must be an object, skipped."));
         return;
     }
     // Profiles saved before the PS button had a key have no "ps": keep the default (F9) for it.
@@ -191,11 +194,11 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
     for (const auto& [actionKey, keys] : j["bindings"].items()) {
         const auto action = parseAction(actionKey);
         if (!action) {
-            warn(w, "Профиль: неизвестное действие «" + actionKey + "», пропущено.");
+            warn(w, tr("Профиль: неизвестное действие «", "Profile: unknown action \"") + actionKey + tr("», пропущено.", "\", skipped."));
             continue;
         }
         if (!keys.is_array()) {
-            warn(w, "Профиль: у «" + actionKey + "» должен быть список клавиш, пропущено.");
+            warn(w, tr("Профиль: у «", "Profile: \"") + actionKey + tr("» должен быть список клавиш, пропущено.", "\" must be a list of keys, skipped."));
             continue;
         }
         auto& slots = l.bindings.slots[static_cast<std::size_t>(*action)];
@@ -204,11 +207,11 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
             const std::string name = k.is_string() ? k.get<std::string>() : k.dump();
             const auto c = k.is_string() ? parseInputCode(name) : std::nullopt;
             if (!c) {
-                warn(w, "Профиль: неизвестная клавиша «" + name + "» у «" + actionKey + "», пропущена.");
+                warn(w, tr("Профиль: неизвестная клавиша «", "Profile: unknown key \"") + name + tr("» у «", "\" for \"") + actionKey + tr("», пропущена.", "\", skipped."));
                 continue;
             }
             if (used == slots.size()) {
-                warn(w, "Профиль: у «" + actionKey + "» больше двух клавиш, лишние пропущены.");
+                warn(w, tr("Профиль: у «", "Profile: \"") + actionKey + tr("» больше двух клавиш, лишние пропущены.", "\" has more than two keys, the rest are skipped."));
                 break;
             }
             slots[used++] = *c;
@@ -223,9 +226,9 @@ std::string_view controlClassName(ControlClass c) {
     return i < kControlClassCount ? kClassNames[i] : std::string_view{};
 }
 
-std::string_view controlClassTitleRu(ControlClass c) {
+std::string_view controlClassTitle(ControlClass c) {
     const auto i = static_cast<std::size_t>(c);
-    return i < kControlClassCount ? kClassTitles[i] : std::string_view{};
+    return i < kControlClassCount ? std::string_view(tr(kClassTitlesRu[i], kClassTitlesEn[i])) : std::string_view{};
 }
 
 std::optional<ControlClass> parseControlClass(std::string_view name) {
@@ -254,7 +257,7 @@ std::string profileToJson(const Profile& p) {
 std::optional<Profile> profileFromJson(std::string_view text, std::vector<std::string>* w) {
     const json j = json::parse(text.begin(), text.end(), nullptr, /*allow_exceptions=*/false);
     if (j.is_discarded() || !j.is_object()) {
-        warn(w, "Профиль: файл повреждён (это не JSON-объект).");
+        warn(w, tr("Профиль: файл повреждён (это не JSON-объект).", "Profile: the file is damaged (not a JSON object)."));
         return std::nullopt;
     }
     Profile p = defaultGtaProfile();
@@ -264,11 +267,11 @@ std::optional<Profile> profileFromJson(std::string_view text, std::vector<std::s
         for (const auto& [key, value] : j["layouts"].items()) {
             const auto c = parseControlClass(key);
             if (!c) {
-                warn(w, "Профиль: неизвестный класс «" + key + "», пропущен.");
+                warn(w, tr("Профиль: неизвестный класс «", "Profile: unknown class \"") + key + tr("», пропущен.", "\", skipped."));
                 continue;
             }
             if (!value.is_object()) {
-                warn(w, "Профиль: класс «" + key + "» должен быть объектом, пропущен.");
+                warn(w, tr("Профиль: класс «", "Profile: class \"") + key + tr("» должен быть объектом, пропущен.", "\" must be an object, skipped."));
                 continue;
             }
             readLayout(value, p.layout(*c), w);

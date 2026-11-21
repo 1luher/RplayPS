@@ -31,7 +31,7 @@ struct App {
     Ps5Link* link = nullptr;
     InputThread* input = nullptr;
 
-    std::filesystem::path pairingPath, profilePath;
+    std::filesystem::path pairingPath, profilePath, langPath;
     std::optional<Pairing> pairing;
     Profile profile;
     std::vector<std::string> profileWarnings;
@@ -76,6 +76,9 @@ struct App {
     std::string recordError;
 };
 
+// Interface language: lang.txt ("ru" / "en"); without it, the Windows display language.
+void loadLanguage(App& app);
+void saveLanguage(App& app);
 void loadProfile(App& app);
 void saveProfile(App& app);
 // Called on F8 when not captured: connects if needed, then captures input.

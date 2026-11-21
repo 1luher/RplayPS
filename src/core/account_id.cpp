@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cctype>
 
+#include "core/lang.h"
+
 namespace {
 
 constexpr char kAlphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -20,7 +22,7 @@ int base64Value(char c) {
 }
 
 void fail(std::string* error) {
-    if (error) *error = "Account ID: ожидается число или 12 символов base64 (например, «Ab3dEf7hIj0=»).";
+    if (error) *error = tr("Account ID: ожидается число или 12 символов base64 (например, «Ab3dEf7hIj0=»).", "Account ID: expected a number or 12 base64 characters (for example \"Ab3dEf7hIj0=\").");
 }
 
 }  // namespace
@@ -37,7 +39,7 @@ std::optional<AccountId> parseAccountId(std::string_view text, std::string* erro
         for (char c : text) {
             const std::uint64_t digit = static_cast<std::uint64_t>(c - '0');
             if (value > (UINT64_MAX - digit) / 10) {
-                if (error) *error = "Account ID: число слишком большое.";
+                if (error) *error = tr("Account ID: число слишком большое.", "Account ID: the number is too large.");
                 return std::nullopt;
             }
             value = value * 10 + digit;

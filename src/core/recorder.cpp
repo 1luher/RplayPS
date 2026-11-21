@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 #include "core/recorder.h"
 
+#include "core/lang.h"
+
 #include <cstdio>
 
 namespace {
@@ -29,7 +31,7 @@ bool Recorder::start(const std::filesystem::path& dir, std::string* errorRu) {
         video_.close();
         frames_.close();
         events_.close();
-        if (errorRu) *errorRu = "Не удалось создать файлы записи в выбранной папке.";
+        if (errorRu) *errorRu = tr("Не удалось создать файлы записи в выбранной папке.", "Couldn't create the recording files in that folder.");
         return false;
     }
     frames_ << "frame,t_ms,bytes,keyframe\n";

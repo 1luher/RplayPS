@@ -30,7 +30,7 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             const InputStats s = g_input->stats();
             wchar_t title[256];
             swprintf_s(title, L"%s L(%+.2f,%+.2f) R(%+.2f,%+.2f) R2=%u btn=%04X mouse=%.0f Hz jitter=%.0f us",
-                       g_input->captured() ? L"[ЗАХВАТ]" : L"[F8 — захват]", s.lastPad.left.x, s.lastPad.left.y,
+                       g_input->captured() ? L"[CAPTURED]" : L"[F8 = capture]", s.lastPad.left.x, s.lastPad.left.y,
                        s.lastPad.right.x, s.lastPad.right.y, s.lastPad.r2, s.lastPad.buttons, s.mouseHz,
                        s.tickJitterUs);
             SetWindowTextW(hwnd, title);
