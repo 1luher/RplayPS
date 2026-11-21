@@ -61,6 +61,11 @@ struct App {
     ULONGLONG bindSinceTick = 0;
     std::string bindNote;
 
+    // Controller → keys hint (a popup): which mode it shows; select that tab once when it opens.
+    bool hintRequested = false;
+    bool hintSelectTab = false;
+    ControlClass hintClass = ControlClass::Foot;
+
     Recorder recorder;  // training data for the vehicle detector
     std::string recordError;
 };

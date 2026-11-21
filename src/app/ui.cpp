@@ -264,6 +264,13 @@ void triggerBar(const char* label, std::uint8_t value, const Fonts& f) {
 
 // ------------------------------------------------------------------ sections
 
+// Opens the controller → keys hint (drawn by drawHint) on the mode that is active now.
+void openHint(App& app) {
+    app.hintRequested = true;
+    app.hintClass = app.input->currentClass();
+    app.hintSelectTab = true;
+}
+
 void drawHeader(App& app) {
     const Fonts& f = app.fonts;
     LinkState state;
@@ -276,13 +283,19 @@ void drawHeader(App& app) {
     ImGui::PopFont();
     ImGui::SameLine();
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10);
-    mutedText("клавиатура и мышь для PS5", f);
+    mutedText("клавиатура и мышь для GTA 6 на PS5", f);
 
-    // Right side: link state pill.
+    // Right side: the hint button, then the link state pill.
     const StateLook look = app.consoleOnly ? StateLook{"Без консоли", col::Muted} : stateLook(state);
     ImGui::PushFont(f.semibold);
     const float pillW = ImGui::CalcTextSize(look.text).x + 14 + 8 + 8 + 14;
     ImGui::PopFont();
+    const std::string hint = std::string(icon::Help) + "  Подсказка";
+    const float hintW = ImGui::CalcTextSize(hint.c_str()).x + ImGui::GetStyle().FramePadding.x * 2;
+    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW - hintW - 12);
+    ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 2);
+    if (ghostButton(hint.c_str())) openHint(app);
+    ImGui::SetItemTooltip("Кнопки геймпада из подсказок GTA 6 и ваши клавиши");
     ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - pillW);
     ImGui::SetCursorPosY(ImGui::GetStyle().WindowPadding.y + 4);
     pill(look.text, look.color, f.semibold);
@@ -650,6 +663,9 @@ void drawFirstSteps(App& app) {
 void drawKeys(App& app) {
     const Fonts& f = app.fonts;
     beginCard("##keys", icon::Keyboard, "Горячие клавиши", f);
+    if (primaryButton((std::string(icon::Help) + "  Подсказка: кнопки геймпада → клавиши").c_str(), -FLT_MIN))
+        openHint(app);
+    ImGui::Dummy(ImVec2(0, 4));
     struct Row {
         const char* key;
         const char* what;
@@ -825,6 +841,402 @@ void drawBindings(App& app) {
     endCard();
 }
 
+// ------------------------------------------------------------------ hint: controller buttons → your keys
+// A picture to glance at while learning: the controller as GTA 6 draws it in its prompts, each
+// button with the key it is on right now (follows the editor) and what it does in that mode.
+
+constexpr Action kLeftStick = Action::MoveUp;  // row marker: movement keys (in the air: the mouse)
+constexpr Action kRightStick = Action::Count;  // row marker: the camera, i.e. the mouse
+constexpr ImU32 kWell = IM_COL32(13, 13, 17, 255);
+constexpr ImU32 kKeycap = IM_COL32(48, 48, 60, 255);
+
+void centeredText(ImDrawList* dl, ImVec2 c, ImU32 color, const char* text, ImFont* font) {
+    ImGui::PushFont(font);
+    const ImVec2 ts = ImGui::CalcTextSize(text);
+    dl->AddText(ImVec2(c.x - ts.x * 0.5f, c.y - ts.y * 0.5f), color, text);
+    ImGui::PopFont();
+}
+
+// The small button icon the game prints in its prompts.
+void padGlyph(ImDrawList* dl, ImVec2 c, Action a, const Fonts& f) {
+    const ImU32 ink = col::Text, dark = col::CardHi;  // dark: text on white glyphs
+    const float r = 11;
+    const auto ring = [&] { dl->AddCircle(c, r, ink, 24, 1.6f); };
+    const auto dpad = [&](int lit) {  // 0 up, 1 down, 2 left, 3 right
+        const ImVec2 arms[4][2] = {{{-3, -10}, {3, -3}}, {{-3, 3}, {3, 10}}, {{-10, -3}, {-3, 3}}, {{3, -3}, {10, 3}}};
+        for (int i = 0; i < 4; ++i)
+            dl->AddRectFilled(ImVec2(c.x + arms[i][0].x, c.y + arms[i][0].y),
+                              ImVec2(c.x + arms[i][1].x, c.y + arms[i][1].y), i == lit ? ink : withAlpha(ink, 70),
+                              1.5f);
+    };
+    const auto shoulder = [&](const char* name) {
+        dl->AddRectFilled(ImVec2(c.x - 13, c.y - 9), ImVec2(c.x + 13, c.y + 9), ink, 4);
+        centeredText(dl, c, dark, name, f.tiny);
+    };
+    switch (a) {
+        case Action::Cross:
+            ring();
+            dl->AddLine(ImVec2(c.x - 4.5f, c.y - 4.5f), ImVec2(c.x + 4.5f, c.y + 4.5f), ink, 1.6f);
+            dl->AddLine(ImVec2(c.x - 4.5f, c.y + 4.5f), ImVec2(c.x + 4.5f, c.y - 4.5f), ink, 1.6f);
+            break;
+        case Action::Circle: ring(); dl->AddCircle(c, 5, ink, 16, 1.6f); break;
+        case Action::Square:
+            ring();
+            dl->AddRect(ImVec2(c.x - 4.5f, c.y - 4.5f), ImVec2(c.x + 4.5f, c.y + 4.5f), ink, 0, 0, 1.6f);
+            break;
+        case Action::Triangle:
+            ring();
+            dl->AddTriangle(ImVec2(c.x, c.y - 5.5f), ImVec2(c.x - 5.5f, c.y + 4), ImVec2(c.x + 5.5f, c.y + 4), ink, 1.6f);
+            break;
+        case Action::L1: shoulder("L1"); break;
+        case Action::R1: shoulder("R1"); break;
+        case Action::L2: shoulder("L2"); break;
+        case Action::R2: shoulder("R2"); break;
+        case Action::L3: ring(); centeredText(dl, c, ink, "L3", f.tiny); break;
+        case Action::R3: ring(); centeredText(dl, c, ink, "R3", f.tiny); break;
+        case kLeftStick: dl->AddCircleFilled(c, r, ink, 24); centeredText(dl, c, dark, "L", f.tiny); break;
+        case kRightStick: dl->AddCircleFilled(c, r, ink, 24); centeredText(dl, c, dark, "R", f.tiny); break;
+        case Action::DpadUp: dpad(0); break;
+        case Action::DpadDown: dpad(1); break;
+        case Action::DpadLeft: dpad(2); break;
+        case Action::DpadRight: dpad(3); break;
+        case Action::Touchpad: dl->AddRectFilled(ImVec2(c.x - 11, c.y - 6), ImVec2(c.x + 11, c.y + 6), ink, 3); break;
+        case Action::Options: dl->AddRectFilled(ImVec2(c.x - 3, c.y - 8), ImVec2(c.x + 3, c.y + 8), ink, 3); break;
+        case Action::Create: dl->AddRectFilled(ImVec2(c.x - 3, c.y - 6), ImVec2(c.x + 3, c.y + 6), ink, 3); break;
+        case Action::PS: ring(); centeredText(dl, c, ink, "PS", f.tiny); break;
+        default: centeredText(dl, c, ink, icon::Keyboard, f.body); break;  // our own modifiers
+    }
+}
+
+// Line-art DualSense (outlines only), as on console control-scheme screens.
+// s = 1: about 300 x 210 px; c = body centre. Leader lines point at padAnchor().
+void drawDualSense(ImDrawList* dl, ImVec2 c, float s) {
+    const auto P = [&](float x, float y) { return ImVec2(c.x + x * s, c.y + y * s); };
+    const ImU32 ink = withAlpha(col::Text, 225);
+    const float t = std::max(1.2f, 1.6f * s);
+    const auto body = [&] {
+        dl->PathLineTo(P(60, -78));
+        dl->PathBezierCubicCurveTo(P(110, -80), P(128, -60), P(136, -30));
+        dl->PathBezierCubicCurveTo(P(150, 20), P(162, 80), P(140, 98));
+        dl->PathBezierCubicCurveTo(P(122, 112), P(100, 100), P(90, 80));
+        dl->PathBezierCubicCurveTo(P(78, 55), P(60, 42), P(0, 44));
+        dl->PathBezierCubicCurveTo(P(-60, 42), P(-78, 55), P(-90, 80));
+        dl->PathBezierCubicCurveTo(P(-100, 100), P(-122, 112), P(-140, 98));
+        dl->PathBezierCubicCurveTo(P(-162, 80), P(-150, 20), P(-136, -30));
+        dl->PathBezierCubicCurveTo(P(-128, -60), P(-110, -80), P(-60, -78));
+    };
+    for (float m : {-1.0f, 1.0f}) {  // triggers (L2/R2) behind bumpers (L1/R1)
+        dl->AddRect(P(m < 0 ? -120 : 76, -102), P(m < 0 ? -76 : 120, -88), ink, 7 * s, 0, t);
+        dl->AddRect(P(m < 0 ? -122 : 72, -88), P(m < 0 ? -72 : 122, -77), ink, 4 * s, 0, t);
+    }
+    body();
+    dl->PathFillConcave(kWell);
+    body();
+    dl->PathStroke(ink, ImDrawFlags_Closed, t);
+    dl->AddRect(P(-46, -76), P(46, -22), ink, 10 * s, 0, t);  // touchpad
+    for (float m : {-1.0f, 1.0f})                               // Create / Options
+        dl->AddRect(P(m * 58 - 2.5f, -72), P(m * 58 + 2.5f, -62), ink, 2 * s, 0, t);
+    for (int i = -2; i <= 2; ++i) dl->AddCircleFilled(P(i * 5.0f, -14), 1.2f * s + 0.4f, ink, 8);  // speaker
+    dl->AddCircle(P(0, 30), 5 * s, ink, 16, t);                                                     // PS button
+    const ImVec2 arms[4][2] = {{{-97, -58}, {-87, -45}}, {{-97, -31}, {-87, -18}}, {{-112, -43}, {-99, -33}},
+                               {{-85, -43}, {-72, -33}}};
+    for (const auto& arm : arms) dl->AddRect(P(arm[0].x, arm[0].y), P(arm[1].x, arm[1].y), ink, 2.5f * s, 0, t);
+    const float b = 8.5f * s, g = 3.6f * s;
+    const ImVec2 tri = P(92, -52), cir = P(106, -38), cro = P(92, -24), sq = P(78, -38);
+    for (const ImVec2 p : {tri, cir, cro, sq}) dl->AddCircle(p, b, ink, 24, t);
+    dl->AddTriangle(ImVec2(tri.x, tri.y - g), ImVec2(tri.x - g, tri.y + g * 0.75f), ImVec2(tri.x + g, tri.y + g * 0.75f),
+                    ink, t * 0.8f);
+    dl->AddCircle(cir, g, ink, 16, t * 0.8f);
+    dl->AddLine(ImVec2(cro.x - g, cro.y - g), ImVec2(cro.x + g, cro.y + g), ink, t * 0.8f);
+    dl->AddLine(ImVec2(cro.x - g, cro.y + g), ImVec2(cro.x + g, cro.y - g), ink, t * 0.8f);
+    dl->AddRect(ImVec2(sq.x - g, sq.y - g), ImVec2(sq.x + g, sq.y + g), ink, 0, 0, t * 0.8f);
+    for (float x : {-36.0f, 36.0f}) {  // sticks
+        dl->AddCircle(P(x, 14), 19 * s, ink, 40, t);
+        dl->AddCircle(P(x, 14), 12 * s, ink, 32, t);
+    }
+}
+
+// Where a button sits on drawDualSense's controller (same local units); false = nowhere (our modifiers).
+bool padAnchor(Action a, ImVec2* at) {
+    switch (a) {
+        case Action::Touchpad: *at = {0, -50}; return true;
+        case Action::Options: *at = {58, -67}; return true;
+        case Action::Create: *at = {-58, -67}; return true;
+        case Action::L1: *at = {-97, -82}; return true;
+        case Action::R1: *at = {97, -82}; return true;
+        case Action::L2: *at = {-98, -95}; return true;
+        case Action::R2: *at = {98, -95}; return true;
+        case Action::DpadUp: *at = {-92, -51}; return true;
+        case Action::DpadDown: *at = {-92, -25}; return true;
+        case Action::DpadLeft: *at = {-105, -38}; return true;
+        case Action::DpadRight: *at = {-79, -38}; return true;
+        case Action::Triangle: *at = {92, -52}; return true;
+        case Action::Circle: *at = {106, -38}; return true;
+        case Action::Cross: *at = {92, -24}; return true;
+        case Action::Square: *at = {78, -38}; return true;
+        case Action::L3:
+        case kLeftStick: *at = {-36, 14}; return true;
+        case Action::R3:
+        case kRightStick: *at = {36, 14}; return true;
+        case Action::PS: *at = {0, 30}; return true;
+        default: return false;
+    }
+}
+
+// Keys as people say them: "ЛКМ" rather than "Mouse1".
+std::string keyLabel(InputCode c) {
+    switch (c) {
+        case code::MouseLeft: return "ЛКМ";
+        case code::MouseRight: return "ПКМ";
+        case code::MouseMiddle: return "Колесо";
+        case code::MouseX1: return "Мышь 4";
+        case code::MouseX2: return "Мышь 5";
+        case code::WheelUp: return "Колесо ↑";
+        case code::WheelDown: return "Колесо ↓";
+        case vk::Up: return "↑";
+        case vk::Down: return "↓";
+        case vk::Left: return "←";
+        case vk::Right: return "→";
+        default: return inputCodeName(c);
+    }
+}
+
+std::vector<std::string> boundKeys(const Layout& l, Action a) {
+    std::vector<std::string> out;
+    for (InputCode c : l.bindings.slots[static_cast<size_t>(a)])
+        if (c != code::None) out.push_back(keyLabel(c));
+    return out;
+}
+
+// "прыжок / лазание; бой — блок; …" -> "Прыжок / лазание": the main meaning only.
+std::string shortMeaning(ControlClass c, Action a) {
+    std::string s = actionMeaningRu(c, a);
+    return capitalized(s.substr(0, s.find(';')).c_str());
+}
+
+struct HintRow {
+    Action glyph;
+    std::vector<std::string> keys;
+    std::string text;
+    float h = 0, keysW = 0;
+    bool compact = false;  // label too long for one line: small font, wrapped
+    bool anchored = false;
+    ImVec2 anchor;
+};
+
+void hintRows(ControlClass c, const Layout& l, std::vector<HintRow>& left, std::vector<HintRow>& right) {
+    const auto add = [&](std::vector<HintRow>& side, Action a) {
+        std::vector<std::string> keys = boundKeys(l, a);
+        std::string text = shortMeaning(c, a);
+        if (!keys.empty() && text != "—") side.push_back({a, std::move(keys), std::move(text)});
+    };
+    const auto firstKeys = [&](std::initializer_list<Action> actions) {
+        std::vector<std::string> keys;
+        for (Action a : actions)
+            if (const auto k = boundKeys(l, a); !k.empty()) keys.push_back(k[0]);
+        return keys;
+    };
+    for (Action a : {Action::Touchpad, Action::L2, Action::L1, Action::DpadUp, Action::DpadLeft, Action::DpadDown,
+                     Action::DpadRight, Action::L3, Action::Create})
+        add(left, a);
+    for (Action a : {Action::Options, Action::R2, Action::R1, Action::Triangle, Action::Circle, Action::Cross,
+                     Action::Square, Action::R3, Action::PS})
+        add(right, a);
+    if (l.mouseTarget == MouseTarget::LeftStick) {
+        left.push_back({kLeftStick, {"Мышь"}, "Тангаж / крен"});
+    } else {
+        if (c == ControlClass::Ground || c == ControlClass::Water) {
+            if (auto k = firstKeys({Action::MoveLeft, Action::MoveRight}); !k.empty())
+                left.push_back({kLeftStick, std::move(k), "Руль"});
+            if (auto k = firstKeys({Action::MoveUp, Action::MoveDown}); !k.empty())
+                left.push_back({kLeftStick, std::move(k), "Наклон (мото, велосипед)"});
+        } else if (auto k = firstKeys({Action::MoveUp, Action::MoveLeft, Action::MoveDown, Action::MoveRight});
+                   !k.empty()) {
+            left.push_back({kLeftStick, std::move(k), "Движение"});
+        }
+        right.push_back({kRightStick, {"Мышь"}, "Обзор"});
+    }
+    add(left, Action::Walk);  // our modifiers: no button on the controller, no leader line
+    add(left, Action::Soft);
+}
+
+constexpr float kCapPad = 8, kCapGap = 4, kGlyphW = 26;
+
+float keycapsWidth(const std::vector<std::string>& keys) {
+    float w = 0;
+    for (const std::string& k : keys) w += ImGui::CalcTextSize(k.c_str()).x + kCapPad * 2;
+    return keys.empty() ? 0 : w + kCapGap * static_cast<float>(keys.size() - 1);
+}
+
+void drawKeycaps(ImDrawList* dl, float x, float midY, const std::vector<std::string>& keys) {
+    const float h = ImGui::GetTextLineHeight() + 8;
+    for (const std::string& k : keys) {
+        const float w = ImGui::CalcTextSize(k.c_str()).x + kCapPad * 2;
+        const ImVec2 a(x, midY - h * 0.5f), b(x + w, midY + h * 0.5f);
+        dl->AddRectFilled(ImVec2(a.x, a.y + 2), ImVec2(b.x, b.y + 2), col::Line, 6);
+        dl->AddRectFilled(a, b, kKeycap, 6);
+        dl->AddText(ImVec2(a.x + kCapPad, a.y + 4), col::Text, k.c_str());
+        x += w + kCapGap;
+    }
+}
+
+float hintTextRoom(const HintRow& r, float colW) { return std::max(colW - r.keysW - kGlyphW - 30, 60.0f); }
+
+void measureHintRow(HintRow& r, float colW, const Fonts& f) {
+    ImGui::PushFont(f.semibold);
+    r.keysW = keycapsWidth(r.keys);
+    const float room = hintTextRoom(r, colW);
+    r.compact = ImGui::CalcTextSize(r.text.c_str()).x > room;
+    ImGui::PopFont();
+    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
+    const float th = ImGui::CalcTextSize(r.text.c_str(), nullptr, false, room).y;
+    ImGui::PopFont();
+    r.h = std::max(34.0f, th + 10);
+    r.anchored = padAnchor(r.glyph, &r.anchor);
+}
+
+// Left column: keys on the outer edge, label right-aligned towards the controller, button icon,
+// then a leader line to the button. The right column mirrors it.
+void drawHintRow(ImDrawList* dl, const HintRow& r, ImVec2 p, float colW, bool leftSide, ImVec2 padC, float padS,
+                 const Fonts& f) {
+    const float mid = p.y + r.h * 0.5f;
+    const float gx = leftSide ? p.x + colW - kGlyphW * 0.5f : p.x + kGlyphW * 0.5f;
+    padGlyph(dl, ImVec2(gx, mid), r.glyph, f);
+
+    ImGui::PushFont(f.semibold);
+    drawKeycaps(dl, leftSide ? p.x : p.x + colW - r.keysW, mid, r.keys);
+    ImGui::PopFont();
+
+    const float room = hintTextRoom(r, colW);
+    ImGui::PushFont(r.compact ? f.tiny : f.semibold);
+    ImFont* font = ImGui::GetFont();
+    const float fs = ImGui::GetFontSize(), lineH = ImGui::GetTextLineHeight();
+    const char* text = r.text.c_str();
+    const char* end = text + r.text.size();
+    float ly = mid - ImGui::CalcTextSize(text, end, false, room).y * 0.5f;
+    for (const char* s = text; s < end; ly += lineH) {  // line by line, so the left side can right-align
+        const char* e = font->CalcWordWrapPositionA(fs / font->FontSize, s, end, room);
+        if (e == s) {  // a word wider than the room: take one whole UTF-8 character and move on
+            do {
+                ++e;
+            } while (e < end && (static_cast<unsigned char>(*e) & 0xC0) == 0x80);
+        }
+        const float lw = font->CalcTextSizeA(fs, FLT_MAX, 0, s, e).x;
+        const float lx = leftSide ? gx - kGlyphW * 0.5f - 12 - lw : gx + kGlyphW * 0.5f + 12;
+        dl->AddText(font, fs, ImVec2(lx, ly), col::Text, s, e);
+        for (s = e; s < end && *s == ' '; ++s) {
+        }
+    }
+    ImGui::PopFont();
+
+    if (r.anchored) {  // out to the controller's side, then to the button
+        const ImVec2 a(padC.x + r.anchor.x * padS, padC.y + r.anchor.y * padS);
+        const float startX = leftSide ? p.x + colW + 4 : p.x - 4;
+        const float elbow = padC.x + (leftSide ? -168.0f : 168.0f) * padS;
+        const ImU32 line = withAlpha(col::Accent, 200);
+        dl->AddLine(ImVec2(startX, mid), ImVec2(elbow, mid), line, 1.2f);
+        dl->AddLine(ImVec2(elbow, mid), a, line, 1.2f);
+        dl->AddCircleFilled(a, 3.0f, col::Accent, 12);
+    }
+}
+
+void drawHint(App& app) {
+    const Fonts& f = app.fonts;
+    const ImGuiViewport* vp = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(vp->WorkPos.x + vp->WorkSize.x * 0.5f, vp->WorkPos.y + vp->WorkSize.y * 0.5f),
+                            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(std::min(vp->WorkSize.x - 48, 1120.0f), std::min(vp->WorkSize.y - 48, 780.0f)));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(26, 22));
+    const bool open = ImGui::BeginPopupModal("##hint", nullptr,
+                                             ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                                                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+    ImGui::PopStyleVar();
+    if (!open) return;
+
+    const float closeW = 110;
+    const float top = ImGui::GetCursorPosY();
+    ImGui::PushFont(f.title);
+    ImGui::TextUnformatted("Подсказка");
+    ImGui::PopFont();
+    ImGui::PushFont(f.tiny);
+    ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+    ImGui::TextUnformatted("Кнопка из подсказок GTA 6 → ваша клавиша. Клавиши меняются на странице «Раскладка».");
+    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowContentRegionMax().x - closeW, top));
+    if (ghostButton("Закрыть  Esc", closeW) || ImGui::IsKeyPressed(ImGuiKey_Escape)) ImGui::CloseCurrentPopup();
+    ImGui::SetCursorPosY(top + 64);
+
+    if (ImGui::BeginTabBar("##hint_tabs")) {
+        for (size_t i = 0; i < kControlClassCount; ++i) {
+            const auto c = static_cast<ControlClass>(i);
+            const std::string title = std::string(controlClassTitleRu(c)) + "   F" + std::to_string(i + 1) + "##h";
+            const ImGuiTabItemFlags flags =
+                app.hintSelectTab && c == app.hintClass ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None;
+            if (ImGui::BeginTabItem(title.c_str(), nullptr, flags)) {
+                if (!app.hintSelectTab) app.hintClass = c;
+                ImGui::EndTabItem();
+            }
+        }
+        app.hintSelectTab = false;
+        ImGui::EndTabBar();
+    }
+
+    std::vector<HintRow> left, right;
+    hintRows(app.hintClass, app.profile.layout(app.hintClass), left, right);
+    const float w = ImGui::GetContentRegionAvail().x;
+    const float padS = std::clamp((w - 620) / 300.0f, 0.8f, 1.25f);
+    const float colW = (w - 380 * padS) * 0.5f;
+    float leftH = 0, rightH = 0;
+    for (auto* side : {&left, &right}) {
+        for (HintRow& r : *side) measureHintRow(r, colW, f);
+        std::stable_sort(side->begin(), side->end(), [](const HintRow& a, const HintRow& b) {
+            return a.anchored != b.anchored ? a.anchored : a.anchored && a.anchor.y < b.anchor.y;
+        });  // rows in the order of their buttons, so leader lines don't cross
+        float& total = side == &left ? leftH : rightH;
+        for (const HintRow& r : *side) total += r.h + 4;
+    }
+    const ImVec2 p = ImGui::GetCursorScreenPos();
+    const float areaTop = p.y + 18;
+    const float areaH = std::max({leftH, rightH, 236 * padS});
+    const ImVec2 padC(p.x + w * 0.5f, areaTop + areaH * 0.5f);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    drawDualSense(dl, padC, padS);
+    float y = areaTop + (areaH - leftH) * 0.5f;
+    for (const HintRow& r : left) {
+        drawHintRow(dl, r, ImVec2(p.x, y), colW, true, padC, padS, f);
+        y += r.h + 4;
+    }
+    y = areaTop + (areaH - rightH) * 0.5f;
+    for (const HintRow& r : right) {
+        drawHintRow(dl, r, ImVec2(p.x + w - colW, y), colW, false, padC, padS, f);
+        y += r.h + 4;
+    }
+    ImGui::Dummy(ImVec2(w, areaH + 36));
+
+    ImGui::Separator();
+    ImGui::Dummy(ImVec2(0, 4));
+    struct Tip {
+        const char* key;
+        const char* what;
+    };
+    static const Tip tips[] = {{"F8", "захват вкл / выкл"}, {"F1–F5", "режим, как на вкладках"},
+                               {"Home", "кнопка PS (держать)"}};
+    for (const Tip& t : tips) {
+        keycap(t.key, f.tiny);
+        ImGui::SameLine(0, 8);
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 3);
+        ImGui::PushFont(f.tiny);
+        ImGui::PushStyleColor(ImGuiCol_Text, toVec4(col::Muted));
+        ImGui::TextUnformatted(t.what);
+        ImGui::PopStyleColor();
+        ImGui::PopFont();
+        ImGui::SameLine(0, 28);
+    }
+    ImGui::NewLine();
+    ImGui::EndPopup();
+}
+
 std::filesystem::path newRecordingDir() {
     PWSTR videos = nullptr;
     std::filesystem::path base;
@@ -966,6 +1378,12 @@ void drawUi(App& app) {
         case Page::Help: drawKeys(app); break;
     }
     ImGui::EndChild();
+
+    if (app.hintRequested) {  // opened here so the popup and its ID live in the main window
+        ImGui::OpenPopup("##hint");
+        app.hintRequested = false;
+    }
+    drawHint(app);
     ImGui::End();
 }
 
