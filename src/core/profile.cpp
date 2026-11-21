@@ -48,6 +48,8 @@ void bind(Layout& l, Action a, InputCode first, InputCode second = code::None) {
 
 Layout footLayout() {
     Layout l;
+    l.aimMouseEnabled = true;    // while aiming (ПКМ → L2) the camera is calmer: precise shots
+    l.aimMouse.sensitivity = 0.6f;
     bind(l, Action::MoveUp, 'W');
     bind(l, Action::MoveLeft, 'A');
     bind(l, Action::MoveDown, 'S');
@@ -123,6 +125,31 @@ Layout airLayout() {  // GTA 6 has one "air vehicles" scheme; mouse = pitch/roll
     return l;
 }
 
+json mouseToJson(const MouseSettings& m) {
+    return {
+        {"sensitivity", m.sensitivity},
+        {"y_ratio", m.yRatio},
+        {"invert_y", m.invertY},
+        {"exponent", m.exponent},
+        {"anti_deadzone", m.antiDeadzone},
+        {"outer_limit", m.outerLimit},
+        {"window_ms", m.windowMs},
+        {"recenter_ms", m.recenterMs},
+    };
+}
+
+void readMouse(const json& j, MouseSettings& m, std::vector<std::string>* w) {
+    readNumber(j, "sensitivity", m.sensitivity, w);
+    readNumber(j, "y_ratio", m.yRatio, w);
+    readBool(j, "invert_y", m.invertY, w);
+    readNumber(j, "exponent", m.exponent, w);
+    readNumber(j, "anti_deadzone", m.antiDeadzone, w);
+    readNumber(j, "outer_limit", m.outerLimit, w);
+    readNumber(j, "window_ms", m.windowMs, w);
+    readNumber(j, "recenter_ms", m.recenterMs, w);
+    m.clamp();
+}
+
 json layoutToJson(const Layout& l) {
     json bindings = json::object();
     for (std::size_t i = 0; i < kActionCount; ++i) {
@@ -133,21 +160,14 @@ json layoutToJson(const Layout& l) {
         if (!keys.empty() || static_cast<Action>(i) == Action::PS)
             bindings[std::string(actionName(static_cast<Action>(i)))] = keys;
     }
-    const MouseSettings& m = l.mouse;
     return {
         {"walk_scale", l.walkScale},
         {"steer_ramp_ms", l.steerRampMs},
         {"soft_trigger", l.softTrigger},
         {"mouse_target", l.mouseTarget == MouseTarget::LeftStick ? "left" : "right"},
-        {"mouse",
-         {{"sensitivity", m.sensitivity},
-          {"y_ratio", m.yRatio},
-          {"invert_y", m.invertY},
-          {"exponent", m.exponent},
-          {"anti_deadzone", m.antiDeadzone},
-          {"outer_limit", m.outerLimit},
-          {"window_ms", m.windowMs},
-          {"recenter_ms", m.recenterMs}}},
+        {"mouse", mouseToJson(l.mouse)},
+        {"aim_mouse_enabled", l.aimMouseEnabled},
+        {"aim_mouse", mouseToJson(l.aimMouse)},
         {"bindings", bindings},
     };
 }
@@ -169,18 +189,11 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
         else
             warn(w, tr("Профиль: «mouse_target» должно быть \"left\" или \"right\", значение пропущено.", "Profile: \"mouse_target\" must be \"left\" or \"right\", value skipped."));
     }
-    if (j.contains("mouse") && j["mouse"].is_object()) {
-        const json& m = j["mouse"];
-        readNumber(m, "sensitivity", l.mouse.sensitivity, w);
-        readNumber(m, "y_ratio", l.mouse.yRatio, w);
-        readBool(m, "invert_y", l.mouse.invertY, w);
-        readNumber(m, "exponent", l.mouse.exponent, w);
-        readNumber(m, "anti_deadzone", l.mouse.antiDeadzone, w);
-        readNumber(m, "outer_limit", l.mouse.outerLimit, w);
-        readNumber(m, "window_ms", l.mouse.windowMs, w);
-        readNumber(m, "recenter_ms", l.mouse.recenterMs, w);
-    }
+    if (j.contains("mouse") && j["mouse"].is_object()) readMouse(j["mouse"], l.mouse, w);
     l.mouse.clamp();
+    readBool(j, "aim_mouse_enabled", l.aimMouseEnabled, w);
+    if (j.contains("aim_mouse") && j["aim_mouse"].is_object()) readMouse(j["aim_mouse"], l.aimMouse, w);
+    l.aimMouse.clamp();
 
     if (!j.contains("bindings")) return;
     if (!j["bindings"].is_object()) {
@@ -307,4 +320,8 @@ void ClassPads::releaseAll() {
 PadState ClassPads::build(double tMs, Stick mouse) const {
     const auto i = static_cast<std::size_t>(active_);
     return composePad(builders_[i], profile_.layouts[i].mouseTarget, mouse, tMs);
+}
+
+bool ClassPads::actionHeld(Action a, double tMs) const {
+    return builders_[static_cast<std::size_t>(active_)].actionActive(a, tMs);
 }

@@ -102,3 +102,16 @@ TEST_CASE("settings_clamp") {
     CHECK(s.sensitivity == 10.0f);
     CHECK(s.antiDeadzone == 0.5f);
 }
+
+TEST_CASE("reconfigure_keeps_recent_motion") {  // e.g. aim settings take over mid-motion
+    MouseStick m;
+    MouseSettings s;
+    s.sensitivity = 1.0f;
+    m.configure(s);
+    m.addMotion(8, 16, 0);  // 2 counts/ms over the 8 ms window
+    CHECK(m.evaluate(9).x == Approx(0.12f + 0.88f * 0.5f));  // d = min(2*1/4, 1) = 0.5
+
+    s.sensitivity = 0.25f;
+    m.configure(s);  // switch while moving: samples stay, only the mapping gets calmer
+    CHECK(m.evaluate(10).x == Approx(0.12f + 0.88f * 0.125f));  // d = 0.125
+}

@@ -570,6 +570,26 @@ void drawMouse(App& app) {
     }
     changed |= ImGui::Checkbox(tr("Инвертировать ось Y", "Invert Y axis"), &m.invertY);
 
+    // Calmer camera while aiming down sights: shots land where the crosshair is.
+    ImGui::Dummy(ImVec2(0, 2));
+    if (ImGui::Checkbox(tr("Своя мышь у прицела (ПКМ)", "Separate mouse while aiming (RMB)"), &layout.aimMouseEnabled)) {
+        if (layout.aimMouseEnabled && layout.aimMouse == MouseSettings{}) {  // first enable: calmer copy of the current settings
+            layout.aimMouse = layout.mouse;
+            layout.aimMouse.sensitivity = std::max(0.05f, layout.mouse.sensitivity * 0.6f);
+        }
+        changed = true;
+    }
+    if (layout.aimMouseEnabled) {
+        changed |= sliderFloat(tr("Чувствительность у прицела", "Aim sensitivity"),
+                               tr("Насколько поворачивает камера, пока зажат прицел. Обычно ниже обычной — так точнее.",
+                                  "How far the camera turns while aiming. Usually lower than normal: more precise."),
+                               &layout.aimMouse.sensitivity, 0.05f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic);
+        if (app.editClass != ControlClass::Foot)
+            mutedText(tr("Здесь кнопка прицела — это L2 (тормоз/спуск): настройки включаются, пока она зажата.",
+                         "Here the aim button is L2 (brake/descend): these settings apply while it is held."),
+                      f);
+    }
+
     // Everything else: folded away.
     ImGui::Dummy(ImVec2(0, 4));
     ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0, 0, 0, 0));
@@ -585,6 +605,19 @@ void drawMouse(App& app) {
         if (app.editClass == ControlClass::Foot)
             changed |= sliderFloat(tr("Шаг (Alt)", "Walk (Alt)"), tr("Насколько наклоняется левый стик, пока зажат Alt", "How far the left stick tilts while Alt is held"), &layout.walkScale,
                                    0.1f, 1.0f, "%.2f");
+        if (layout.aimMouseEnabled) {
+            ImGui::Separator();
+            mutedText(tr("У прицела:", "While aiming:"), f);
+            changed |= sliderFloat(tr("Вертикаль у прицела", "Aim vertical"), tr("Чувствительность по вертикали относительно горизонтали", "Vertical sensitivity relative to horizontal"),
+                                   &layout.aimMouse.yRatio, 0.25f, 3.0f, "× %.2f");
+            changed |= ImGui::Checkbox(tr("Инвертировать ось Y у прицела", "Invert Y while aiming"), &layout.aimMouse.invertY);
+            changed |= sliderFloat(tr("Кривая у прицела", "Aim curve"), tr("1 — линейно; больше — точнее на медленных движениях", "1 = linear; higher = more precise on slow moves"),
+                                   &layout.aimMouse.exponent, 0.5f, 3.0f, "%.2f");
+            changed |= sliderFloat(tr("Анти-мёртвая зона у прицела", "Aim anti-deadzone"), tr("Сразу перепрыгивает мёртвую зону стика в игре", "Jumps straight past the game's stick deadzone"),
+                                   &layout.aimMouse.antiDeadzone, 0.0f, 0.5f, "%.2f");
+            changed |= sliderFloat(tr("Макс. наклон у прицела", "Aim max tilt"), tr("Сильнее этого стик не отклоняется", "The stick never tilts further than this"),
+                                   &layout.aimMouse.outerLimit, 0.5f, 1.0f, "%.2f");
+        }
     }
     ImGui::PopStyleColor();
 

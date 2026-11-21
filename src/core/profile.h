@@ -24,6 +24,8 @@ enum class MouseTarget : std::uint8_t { RightStick, LeftStick };
 struct Layout {
     Bindings bindings;
     MouseSettings mouse;
+    MouseSettings aimMouse;      // while the aim button (L2) is held; only used when aimMouseEnabled
+    bool aimMouseEnabled = false;
     MouseTarget mouseTarget = MouseTarget::RightStick;
     float walkScale = 0.5f;
     int steerRampMs = 0;       // 0..500: A/D reach full lock in this time (0 = instantly)
@@ -59,6 +61,7 @@ public:
     void setActive(ControlClass c) { active_ = c; }
     ControlClass active() const { return active_; }
     const Layout& activeLayout() const { return profile_.layout(active_); }
+    bool actionHeld(Action a, double tMs) const;  // e.g. L2: the game's aim trigger
     PadState build(double tMs, Stick mouse) const;
 
 private:

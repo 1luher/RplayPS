@@ -282,6 +282,10 @@ void InputThread::onRawInput(HRAWINPUT handle) {
 
 void InputThread::evaluate(bool timed) {
     const double now = nowMs();
+    // While the aim button (L2) is held, the active class may want its own mouse settings.
+    const Layout& layout = builder_->activeLayout();
+    const bool aiming = layout.aimMouseEnabled && builder_->actionHeld(Action::L2, now);
+    mouse_.configure(aiming ? layout.aimMouse : layout.mouse);  // ring keeps recent motion: no jump
     PadState pad = builder_->build(now, mouse_.evaluate(now));  // active class decides the mapping
     // Holding a wheel button (L1, D-pad left/right) turns the mouse into a direction picker.
     radial_.update(pad.pressed(PadButton::L1) || pad.pressed(PadButton::DpadLeft) || pad.pressed(PadButton::DpadRight), now);

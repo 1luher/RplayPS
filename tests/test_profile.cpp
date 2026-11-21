@@ -223,3 +223,53 @@ TEST_CASE("class_pads_release_all") {
     pads.setActive(ControlClass::Ground);
     CHECK(pads.build(1, {}) == PadState{});
 }
+
+TEST_CASE("aim_mouse_defaults") {
+    const Profile p = defaultGtaProfile();
+    CHECK(L(p, ControlClass::Foot).aimMouseEnabled);           // calmer camera while aiming
+    CHECK(L(p, ControlClass::Foot).aimMouse.sensitivity == doctest::Approx(0.6f));
+    CHECK_FALSE(L(p, ControlClass::Ground).aimMouseEnabled);   // there L2 is the brake
+    CHECK_FALSE(L(p, ControlClass::Water).aimMouseEnabled);
+    CHECK_FALSE(L(p, ControlClass::Heli).aimMouseEnabled);     // there L2 is descend
+    CHECK_FALSE(L(p, ControlClass::Plane).aimMouseEnabled);
+}
+
+TEST_CASE("aim_mouse_roundtrip") {
+    Profile p = defaultGtaProfile();
+    p.layout(ControlClass::Foot).aimMouse.sensitivity = 2.5f;
+    p.layout(ControlClass::Foot).aimMouse.exponent = 1.5f;
+    p.layout(ControlClass::Foot).aimMouseEnabled = false;
+    p.layout(ControlClass::Ground).aimMouseEnabled = true;
+    p.layout(ControlClass::Ground).aimMouse.yRatio = 0.8f;
+    std::vector<std::string> warnings;
+    const auto back = profileFromJson(profileToJson(p), &warnings);
+    REQUIRE(back);
+    CHECK(warnings.empty());
+    CHECK_FALSE(L(*back, ControlClass::Foot).aimMouseEnabled);
+    CHECK(L(*back, ControlClass::Foot).aimMouse.sensitivity == doctest::Approx(2.5f));
+    CHECK(L(*back, ControlClass::Foot).aimMouse.exponent == doctest::Approx(1.5f));
+    CHECK(L(*back, ControlClass::Ground).aimMouseEnabled);
+    CHECK(L(*back, ControlClass::Ground).aimMouse.yRatio == doctest::Approx(0.8f));
+}
+
+TEST_CASE("profile_without_aim_keys_gets_the_new_foot_default") {
+    const auto p = fromFoot(R"({"walk_scale": 0.5})", nullptr);  // saved before aim settings existed
+    REQUIRE(p);
+    CHECK(L(*p, ControlClass::Foot).aimMouseEnabled);
+    const auto q = fromFoot(R"({"aim_mouse_enabled": false})", nullptr);  // explicitly off stays off
+    REQUIRE(q);
+    CHECK_FALSE(L(*q, ControlClass::Foot).aimMouseEnabled);
+}
+
+TEST_CASE("class_pads_know_when_the_aim_button_is_held") {
+    ClassPads pads(defaultGtaProfile());
+    pads.setInput(code::MouseRight, true, 0);  // ПКМ = aim in the foot layout
+    CHECK(pads.actionHeld(Action::L2, 1));
+    pads.setInput(code::MouseRight, false, 2);
+    CHECK_FALSE(pads.actionHeld(Action::L2, 3));
+
+    pads.setActive(ControlClass::Ground);
+    CHECK_FALSE(pads.actionHeld(Action::L2, 4));
+    pads.setInput('S', true, 5);  // in the ground layout L2 = brake/reverse
+    CHECK(pads.actionHeld(Action::L2, 6));
+}

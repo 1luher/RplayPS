@@ -37,7 +37,8 @@ with separate layouts for on foot, cars, boats, helicopters and planes.
 
 ## Features
 
-- **Mouse as camera** — sensitivity, curve, deadzone and axis ratio, tuned live.
+- **Mouse as camera** — sensitivity, curve, deadzone and axis ratio, tuned live. While aiming (RMB
+  held) it uses its own, usually lower: more precise shots.
 - **Game modes on F1–F5:** on foot, ground vehicles, water, helicopter, plane. In the air the mouse
   controls pitch and roll.
 - **Smooth steering** on A/D, **soft throttle** with Alt, **weapon wheel and menus with the mouse**.

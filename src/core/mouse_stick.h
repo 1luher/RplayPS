@@ -16,6 +16,8 @@ struct MouseSettings {
     int windowMs = 8;            // 2..32      speed measurement window
     int recenterMs = 10;         // 2..100     centre after this long without motion
 
+    bool operator==(const MouseSettings&) const = default;
+
     void clamp();
 };
 

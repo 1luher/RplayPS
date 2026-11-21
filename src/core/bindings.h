@@ -60,10 +60,10 @@ public:
     void setInput(InputCode c, bool down, double tMs);
     void releaseAll();
     PadState build(double tMs, Stick right) const;
+    bool actionActive(Action a, double tMs) const;  // any bound key held (wheel pulses count)
 
 private:
     bool codeActive(InputCode c, double tMs) const;
-    bool actionActive(Action a, double tMs) const;
     double lastPress(Action a, double tMs) const;
 
     Bindings bindings_;
