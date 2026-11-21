@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">Русский</a> · <b>English</b>
+  <a href="README.md"><img src="assets/lang-ru.svg" height="44" alt="Русский"></a>&nbsp;&nbsp;<img src="assets/lang-en-active.svg" height="44" alt="English">
 </p>
 
 <p align="center">
