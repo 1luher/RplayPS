@@ -6,4 +6,4 @@
 
 #include "core/version.h"
 
-TEST_CASE("smoke") { CHECK(std::string(rplayVersion()) == "0.1.0"); }
+TEST_CASE("smoke") { CHECK(std::string(rplayVersion()) == "0.2.0"); }

@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <b>Русский</b> · <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/1luher/RplayPS/releases/latest"><img src="https://img.shields.io/github/v/release/1luher/RplayPS?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C&color=ff5688" alt="Скачать"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4" alt="Windows 10 | 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/лицензия-AGPL--3.0-blue" alt="AGPL-3.0"></a>
@@ -42,6 +46,7 @@ RPlay K&M — программа для Windows, которая превраща
 - **Account ID в один клик** — через официальный вход Sony, без сторонних сайтов.
 - **Безопасно:** потерян фокус окна или связь — все кнопки отпускаются, персонаж останавливается.
 - **Звуковые сигналы** — окна не видно, пока монитор показывает PS5, поэтому всё важное озвучено.
+- **Русский и английский** интерфейс, переключается одной кнопкой.
 
 ## Как это работает
 
