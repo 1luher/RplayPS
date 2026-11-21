@@ -9,10 +9,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 
 #include "core/account_id.h"
+#include "ps5/psn_login.h"
 
 namespace {
 
@@ -345,6 +347,62 @@ void drawCaptureBanner(App& app) {
     ImGui::Dummy(ImVec2(0, 0));
 }
 
+// Under the Account ID field: sign in to PSN in the browser, paste the redirect page address back,
+// get the account number from Sony and fill the field.
+void drawPsnLogin(App& app) {
+    const Fonts& f = app.fonts;
+    if (ready(app.psn_job)) {
+        auto [id, error] = app.psn_job.get();
+        if (id) {
+            strncpy_s(app.accountField, accountIdToBase64(*id).c_str(), _TRUNCATE);
+            app.psnLoginOpen = false;
+            app.psnNote = "Account ID получен из PSN и вписан выше.";
+        } else {
+            app.psnError = error;
+        }
+    }
+    const bool busy = app.psn_job.valid();
+    if (!app.psnLoginOpen) {
+        if (ghostButton("Узнать Account ID — войти в PSN", -FLT_MIN)) {
+            const std::wstring url(kPsnLoginUrl, kPsnLoginUrl + std::strlen(kPsnLoginUrl));
+            ShellExecuteW(nullptr, L"open", url.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            app.psnLoginOpen = true;
+            app.psnError.clear();
+            app.psnNote.clear();
+        }
+        ImGui::SetItemTooltip("Откроется официальная страница входа Sony. Пароль вводится только там.");
+        noteText(app.psnNote, col::Good, f);
+        return;
+    }
+    mutedText("1. В браузере открылась страница Sony: войдите под аккаунтом, на котором играете в GTA 6.\n"
+              "2. Появится пустая страница с надписью «redirect»: скопируйте её адрес и вставьте сюда.",
+              f);
+    inputField("Адрес страницы redirect", "https://remoteplay.dl.playstation.net/remoteplay/redirect?code=…",
+               app.psnRedirectField, sizeof(app.psnRedirectField), f, ImGuiInputTextFlags_Password);
+    const float half = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+    ImGui::BeginDisabled(busy);
+    if (primaryButton(busy ? "Спрашиваю Sony…" : "Получить Account ID", half)) {
+        if (const auto code = oauthCodeFromRedirect(app.psnRedirectField)) {
+            app.psnError.clear();
+            app.psn_job = std::async(std::launch::async, [code = *code] {
+                std::string error;
+                auto id = fetchPsnAccountId(code, &error);
+                return std::pair{id, error};
+            });
+        } else {
+            app.psnError = "В адресе нет кода. Скопируйте адрес страницы «redirect» целиком.";
+        }
+        SecureZeroMemory(app.psnRedirectField, sizeof(app.psnRedirectField));  // one-time secret
+    }
+    ImGui::EndDisabled();
+    ImGui::SameLine();
+    if (ghostButton("Отмена", half)) {
+        app.psnLoginOpen = false;
+        SecureZeroMemory(app.psnRedirectField, sizeof(app.psnRedirectField));
+    }
+    noteText(app.psnError, col::Bad, f);
+}
+
 void drawPs5(App& app) {
     const Fonts& f = app.fonts;
     LinkState state;
@@ -415,6 +473,7 @@ void drawPs5(App& app) {
     }
     inputField("Адрес PS5", "192.168.1.50", app.hostField, sizeof(app.hostField), f);
     inputField("Account ID", "число или 12 символов base64", app.accountField, sizeof(app.accountField), f);
+    drawPsnLogin(app);
     inputField("PIN", "8 цифр с экрана PS5", app.pinField, sizeof(app.pinField), f, ImGuiInputTextFlags_CharsDecimal);
     ImGui::Dummy(ImVec2(0, 2));
     ImGui::BeginDisabled(pairingBusy);

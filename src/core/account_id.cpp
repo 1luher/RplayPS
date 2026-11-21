@@ -103,3 +103,26 @@ std::optional<std::uint32_t> parsePin(std::string_view text) {
     for (char c : text) value = value * 10 + static_cast<std::uint32_t>(c - '0');
     return value;
 }
+
+std::optional<std::string> oauthCodeFromRedirect(std::string_view url) {
+    const auto valid = [](std::string_view v) {
+        return !v.empty() && v.size() <= 512 && std::all_of(v.begin(), v.end(), [](char ch) {
+                   return std::isalnum(static_cast<unsigned char>(ch)) || ch == '-' || ch == '_' || ch == '.' || ch == '~';
+               });
+    };
+    url = trim(url);
+    const size_t q = url.find('?');
+    if (q == std::string_view::npos) return valid(url) ? std::optional<std::string>(url) : std::nullopt;
+    std::string_view query = url.substr(q + 1);
+    query = query.substr(0, query.find('#'));
+    for (;;) {
+        const size_t amp = query.find('&');
+        const std::string_view pair = query.substr(0, amp);
+        if (pair.substr(0, 5) == "code=") {
+            const std::string_view value = pair.substr(5);
+            return valid(value) ? std::optional<std::string>(value) : std::nullopt;
+        }
+        if (amp == std::string_view::npos) return std::nullopt;
+        query.remove_prefix(amp + 1);
+    }
+}

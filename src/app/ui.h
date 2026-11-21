@@ -44,6 +44,12 @@ struct App {
     std::future<std::pair<std::optional<Pairing>, std::string>> pairing_job;  // result, error
     std::future<std::vector<FoundConsole>> discover_job;
     std::string pairError;
+    // Account ID through the PSN sign-in page (ps5/psn_login.h): the pasted redirect address is a
+    // one-time secret, wiped once used.
+    bool psnLoginOpen = false;
+    char psnRedirectField[1024] = "";
+    std::future<std::pair<std::optional<AccountId>, std::string>> psn_job;  // result, error
+    std::string psnError, psnNote;
     std::vector<FoundConsole> found;
     char hostField[64] = "";
     char accountField[64] = "";

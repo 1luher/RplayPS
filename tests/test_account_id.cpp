@@ -51,3 +51,15 @@ TEST_CASE("pin_accepts_exactly_eight_digits") {
     CHECK_FALSE(parsePin("123456789"));
     CHECK_FALSE(parsePin(""));
 }
+
+TEST_CASE("oauth_code_from_redirect_page_address") {
+    CHECK(oauthCodeFromRedirect("https://remoteplay.dl.playstation.net/remoteplay/redirect?code=RGEf27&cid=cfd2610e-9112") ==
+          "RGEf27");
+    CHECK(oauthCodeFromRedirect("  https://remoteplay.dl.playstation.net/remoteplay/redirect?cid=x&code=Ab-9_c#top ") ==
+          "Ab-9_c");
+    CHECK(oauthCodeFromRedirect("vXh2Kq") == "vXh2Kq");  // the code alone
+    CHECK_FALSE(oauthCodeFromRedirect("https://remoteplay.dl.playstation.net/remoteplay/redirect?cid=x"));
+    CHECK_FALSE(oauthCodeFromRedirect("https://example.com/?code="));
+    CHECK_FALSE(oauthCodeFromRedirect("https://example.com/?code=a b"));  // not a code: stops a bad request
+    CHECK_FALSE(oauthCodeFromRedirect(""));
+}
