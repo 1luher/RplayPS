@@ -778,6 +778,8 @@ const char* actionMeaningRu(ControlClass c, Action a) {
     return "";
 }
 
+std::string keyLabel(InputCode c);  // "ЛКМ", "Колесо", "↑": defined with the hint below
+
 void drawBindings(App& app) {
     const Fonts& f = app.fonts;
     beginCard("##keys_edit", icon::Keyboard, "Раскладка клавиш", f);
@@ -820,7 +822,7 @@ void drawBindings(App& app) {
                 ImGui::TableNextColumn();
                 const InputCode code = layout.bindings.slots[i][s];
                 const bool waiting = app.bindWaiting && app.bindAction == a && app.bindSlot == s;
-                std::string label = waiting ? "нажмите…" : code ? inputCodeName(code) : "—";
+                std::string label = waiting ? "нажмите…" : code ? keyLabel(code) : "—";
                 label += "##b" + std::to_string(i * 2 + s);
                 if (waiting) ImGui::PushStyleColor(ImGuiCol_Button, toVec4(col::Accent));
                 if (ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 0)) && !app.input->captured()) {
