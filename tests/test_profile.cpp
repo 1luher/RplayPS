@@ -40,8 +40,8 @@ TEST_CASE("default_profile_has_a_layout_per_class") {
     CHECK(slot(p, ControlClass::Plane, Action::Circle) == 'D');
     CHECK(slot(p, ControlClass::Heli, Action::L3) == 'G');  // the game's one air scheme: L3 = landing gear
     CHECK(slot(p, ControlClass::Plane, Action::L3) == 'G');
-    for (size_t i = 0; i < kControlClassCount; ++i)  // hold PS (Home) to take over the console
-        CHECK(slot(p, static_cast<ControlClass>(i), Action::PS) == vk::Home);
+    for (size_t i = 0; i < kControlClassCount; ++i)  // hold PS (F9) to take over the console
+        CHECK(slot(p, static_cast<ControlClass>(i), Action::PS) == vk::F9);
     CHECK(parseInputCode("Home") == vk::Home);
     CHECK(inputCodeName(vk::PageDown) == "PageDown");
 }
@@ -87,7 +87,7 @@ TEST_CASE("missing_class_takes_its_default_layout") {
 TEST_CASE("old_profile_without_ps_gets_home_but_an_explicit_ps_wins") {
     auto p = fromFoot(R"({"bindings":{"cross":["Space"]}})", nullptr);  // saved before PS had a key
     REQUIRE(p);
-    CHECK(slot(*p, ControlClass::Foot, Action::PS) == vk::Home);
+    CHECK(slot(*p, ControlClass::Foot, Action::PS) == vk::F9);
     p = fromFoot(R"({"bindings":{"cross":["Space"],"ps":["P"]}})", nullptr);
     REQUIRE(p);
     CHECK(slot(*p, ControlClass::Foot, Action::PS) == 'P');

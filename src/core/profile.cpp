@@ -66,7 +66,7 @@ Layout footLayout() {
     bind(l, Action::DpadRight, vk::Right);     // detonate / partner menu
     bind(l, Action::Touchpad, 'M');            // map
     bind(l, Action::Options, vk::Esc);         // pause
-    bind(l, Action::PS, vk::Home);             // PS button (hold it to take over the console)
+    bind(l, Action::PS, vk::F9);               // PS button (hold it to take over the console), next to F8
     return l;
 }
 
@@ -94,7 +94,7 @@ Layout groundLayout() {  // cars, bikes, trucks, motorcycles; boats use the same
     bind(l, Action::DpadRight, vk::Right);     // indicator
     bind(l, Action::Touchpad, 'M');
     bind(l, Action::Options, vk::Esc);
-    bind(l, Action::PS, vk::Home);
+    bind(l, Action::PS, vk::F9);
     return l;
 }
 
@@ -116,7 +116,7 @@ Layout airLayout() {  // GTA 6 has one "air vehicles" scheme; mouse = pitch/roll
     bind(l, Action::DpadRight, vk::Right);
     bind(l, Action::Touchpad, 'M');
     bind(l, Action::Options, vk::Esc);
-    bind(l, Action::PS, vk::Home);
+    bind(l, Action::PS, vk::F9);
     return l;
 }
 
@@ -184,7 +184,7 @@ void readLayout(const json& j, Layout& l, std::vector<std::string>* w) {
         warn(w, "Профиль: «bindings» должно быть объектом, пропущено.");
         return;
     }
-    // Profiles saved before the PS button had a key have no "ps": keep the default (Home) for it.
+    // Profiles saved before the PS button had a key have no "ps": keep the default (F9) for it.
     const auto psDefault = l.bindings.slots[static_cast<std::size_t>(Action::PS)];
     l.bindings = Bindings{};
     if (!j["bindings"].contains("ps")) l.bindings.slots[static_cast<std::size_t>(Action::PS)] = psDefault;
